@@ -35,7 +35,7 @@ function createDocAIClient(): DocumentProcessorServiceClient {
         },
         projectId: credentials.project_id,
       });
-    } catch (error) {
+    } catch {
       throw new DocAIError(
         "Failed to parse GCP_SERVICE_ACCOUNT_JSON. Ensure it contains valid JSON.",
         "INVALID_CREDENTIALS",

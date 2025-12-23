@@ -17,7 +17,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const { data, error } = await getSupabaseClient().auth.signInWithPassword({
+      const { error } = await getSupabaseClient().auth.signInWithPassword({
         email,
         password,
       })
@@ -38,7 +38,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const { data, error } = await getSupabaseClient().auth.signUp({
+      const { error } = await getSupabaseClient().auth.signUp({
         email,
         password,
       })
