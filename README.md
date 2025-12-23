@@ -402,6 +402,34 @@ Check document processing status.
 
 ## Smoke Test Checklist
 
+### 🚨 RELEASE GATE
+**Rule: If `npm run smoke-test` fails, nothing ships.**
+
+Before:
+- Onboarding beta users
+- Tweaking UI flows  
+- Adding new document types
+- Any production deployment
+
+Run the automated smoke test to verify the complete pipeline works.
+
+---
+
+### Running the Smoke Test
+```bash
+# Install dependencies (first time only)
+npm install
+
+# Start local servers
+npm run dev          # Terminal 1: Next.js dev server
+npm run inngest:dev  # Terminal 2: Inngest dev server
+
+# Run smoke test in new terminal
+npm run smoke-test
+```
+
+### Manual Verification Steps
+
 ### Local Development
 - [ ] `npm run dev` starts without errors
 - [ ] Inngest dev server connects
