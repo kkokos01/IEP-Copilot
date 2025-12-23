@@ -6,6 +6,9 @@ import { inngest } from "@/inngest/client";
 import { processDocument } from "@/inngest/functions/processDocument";
 import { generateFindings } from "@/inngest/functions/generateFindings";
 
+// Force Node.js runtime (required for Document AI and PDF processing)
+export const runtime = "nodejs";
+
 // Export all HTTP methods that Inngest needs
 export const { GET, POST, PUT } = serve({
   client: inngest,

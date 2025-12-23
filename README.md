@@ -292,23 +292,78 @@ Required GitHub secrets:
 
 ---
 
+## Upload Flow
+
+To avoid Vercel's request body size limits, documents are uploaded in two steps:
+
+### Step 1: Upload file directly to Supabase Storage
+```javascript
+// Client-side code
+const { data: { session } } = await supabase.auth.getSession();
+const documentId = crypto.randomUUID();
+const storagePath = `${session.user.id}/${documentId}/original.pdf`;
+
+// Upload directly to storage
+const { error } = await supabase.storage
+  .from('documents')
+  .upload(storagePath, file, {
+    contentType: 'application/pdf',
+    upsert: false
+  });
+```
+
+### Step 2: Create document record via API
+```javascript
+// Then call API with metadata
+const response = await fetch('/api/documents/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    documentId,
+    storagePath,
+    caseId: 'case-uuid',
+    type: 'iep',
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type
+  })
+});
+```
+
+### Storage Path Convention
+- **Format**: `{userId}/{documentId}/original.pdf`
+- **Enforced by**: RLS policies in Supabase
+- **Important**: Must match exactly or uploads will fail
+
+---
+
 ## API Reference
 
 ### POST /api/documents/upload
 
-Upload a document and start processing.
+Create a document record and trigger processing. 
+**Note**: Files must be uploaded directly to Supabase Storage first (see Upload Flow below).
 
 **Headers:**
 ```
 Authorization: Bearer <supabase_access_token>
-Content-Type: multipart/form-data
+Content-Type: application/json
 ```
 
 **Body:**
-```
-file: <PDF file>
-caseId: <UUID>
-type: "iep" | "evaluation" | "progress_report" | "other"
+```json
+{
+  "documentId": "uuid",
+  "storagePath": "user-id/uuid/original.pdf",
+  "caseId": "uuid",
+  "type": "iep" | "evaluation" | "progress_report" | "other",
+  "fileName": "document.pdf",
+  "fileSize": 1234567,
+  "mimeType": "application/pdf"
+}
 ```
 
 **Response:**
@@ -317,6 +372,13 @@ type: "iep" | "evaluation" | "progress_report" | "other"
   "success": true,
   "documentId": "uuid",
   "message": "Document uploaded and processing started"
+}
+```
+
+**Error Response (415):**
+```json
+{
+  "error": "Content-Type must be application/json"
 }
 ```
 
@@ -379,6 +441,50 @@ Check document processing status.
 | `INNGEST_SIGNING_KEY` | Yes | Inngest signing key |
 | `ENABLE_SERVER_PDF_RENDER` | No | Server-side PDF rendering (default: false) |
 | `ENABLE_FUZZY_VERIFICATION` | No | Fuzzy quote matching (default: false) |
+
+---
+
+## Troubleshooting
+
+### Upload Issues
+
+**"Content-Type must be application/json"**
+- You're sending FormData instead of JSON
+- Follow the two-step Upload Flow above
+- Ensure client uploads to Supabase Storage first
+
+**"Storage upload failed"**
+- Check RLS policy: storage path must be `{userId}/{documentId}/original.pdf`
+- Verify user is authenticated
+- Ensure storage bucket exists and is named `documents`
+
+**"Document not found" after upload**
+- Storage path mismatch between client and server
+- Check that `storagePath` in API call matches actual upload location
+
+### Document Processing Issues
+
+**"Analysis failed" in document status**
+- Check GCP credentials: WIF config or service account JSON
+- Verify Document AI processor ID and location
+- Check Inngest function logs for detailed errors
+
+**No findings generated**
+- Document may have failed extraction
+- Check if document was processed successfully
+- Verify Anthropic API key is valid
+
+### Common Errors
+
+**Build fails with "supabaseUrl is required"**
+- Environment variables missing during build
+- Ensure all Supabase vars are set in Vercel
+- Check .env.local for local development
+
+**Vercel deployment fails**
+- Check runtime="nodejs" is set on API routes using Node APIs
+- Verify all environment variables are configured
+- Check build logs for specific errors
 
 *For local dev, you can use `GOOGLE_APPLICATION_CREDENTIALS` file path instead.
 

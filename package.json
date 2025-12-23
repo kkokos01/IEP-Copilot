@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "db:generate": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/supabase.ts",
     "db:migrate": "supabase db push",
-    "inngest:dev": "npx inngest-cli@latest dev"
+    "inngest:dev": "npx inngest-cli@latest dev",
+    "smoke-test": "tsx scripts/smoke-test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
