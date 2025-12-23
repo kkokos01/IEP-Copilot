@@ -120,7 +120,7 @@ export async function renderPagesToImages(
 
       if (format === "webp") {
         finalBuffer = await convertToWebp(pageBuffer, quality);
-        finalFormat = "webp";
+        finalFormat = "webp" as "png" | "jpeg";
       }
 
       // Get image dimensions (simple approach: read from buffer)
