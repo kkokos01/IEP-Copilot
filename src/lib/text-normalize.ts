@@ -31,14 +31,14 @@ const LIGATURES: Record<string, string> = {
 
 // Quote normalization
 const QUOTES: Record<string, string> = {
-  '"': '"',
-  '"': '"',
-  '„': '"',
-  '‟': '"',
-  ''': "'",
-  ''': "'",
-  '‚': "'",
-  '‛': "'",
+  '\u201C': '"', // left double quotation mark
+  '\u201D': '"', // right double quotation mark
+  '\u201E': '"', // double low-9 quotation mark
+  '\u201F': '"', // double high-reversed-9 quotation mark
+  '\u2018': "'", // left single quotation mark
+  '\u2019': "'", // right single quotation mark
+  '\u201A': "'", // single low-9 quotation mark
+  '\u201B': "'", // single high-reversed-9 quotation mark
   '«': '"',
   '»': '"',
   '‹': "'",
