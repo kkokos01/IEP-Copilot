@@ -54,7 +54,7 @@ export const processDocument = inngest.createFunction(
 
     // Step 1: Load document metadata
     const doc = await step.run("load-document", async () => {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from("documents")
         .select("id, case_id, storage_path, source_filename, type, file_size_bytes")
         .eq("id", documentId)
@@ -215,7 +215,7 @@ export const processDocument = inngest.createFunction(
     // Step 8: Persist extracted blocks (delete-then-insert for idempotency)
     await step.run("persist-blocks", async () => {
       // Delete existing blocks (handles retries)
-      const { error: deleteError } = await supabaseAdmin
+      const { error: deleteError } = await getSupabaseAdmin()
         .from("document_blocks")
         .delete()
         .eq("document_id", documentId);
@@ -316,7 +316,7 @@ export const processDocument = inngest.createFunction(
         };
       }
 
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from("documents")
         .update(updateData)
         .eq("id", documentId);
@@ -373,7 +373,7 @@ async function updateDocumentStatus(
   if (extras.extractionStartedAt) updateData.extraction_started_at = extras.extractionStartedAt;
   if (extras.extractionCompletedAt) updateData.extraction_completed_at = extras.extractionCompletedAt;
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from("documents")
     .update(updateData)
     .eq("id", documentId);

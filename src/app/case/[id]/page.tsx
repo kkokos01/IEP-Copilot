@@ -35,7 +35,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
 
   const loadCaseData = async (caseId: string, userId: string) => {
     // Load case info
-    const { data: caseInfo } = await supabase
+    const { data: caseInfo } = await getSupabaseClient()
       .from('cases')
       .select('*, children(name)')
       .eq('id', caseId)
@@ -49,7 +49,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
     setCaseData(caseInfo)
 
     // Load documents
-    const { data: docs } = await supabase
+    const { data: docs } = await getSupabaseClient()
       .from('documents')
       .select('*')
       .eq('case_id', caseId)

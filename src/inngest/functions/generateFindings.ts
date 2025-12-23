@@ -168,7 +168,7 @@ export const generateFindings = inngest.createFunction(
     retries: 2,
     onFailure: async ({ error, event }) => {
       const { documentId } = (event.data as any).documentId || event.data;
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from("documents")
         .update({ 
           status: "analysis_failed",
@@ -183,7 +183,7 @@ export const generateFindings = inngest.createFunction(
 
     // Step 1: Load document and case info
     const doc = await step.run("load-document-info", async () => {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from("documents")
         .select("id, case_id, type, source_filename")
         .eq("id", documentId)
@@ -198,7 +198,7 @@ export const generateFindings = inngest.createFunction(
 
     // Step 2: Mark as analyzing
     await step.run("mark-analyzing", async () => {
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from("documents")
         .update({ status: "analyzing" })
         .eq("id", documentId);
@@ -206,7 +206,7 @@ export const generateFindings = inngest.createFunction(
 
     // Step 3: Load extracted pages
     const pages = await step.run("load-pages", async () => {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from("document_pages")
         .select("page_number, text, text_normalized")
         .eq("document_id", documentId)
@@ -225,7 +225,7 @@ export const generateFindings = inngest.createFunction(
 
     // Step 4: Load document blocks for bbox lookup
     const blocks = await step.run("load-blocks", async () => {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from("document_blocks")
         .select("page_number, text, text_normalized, bbox")
         .eq("document_id", documentId)
@@ -329,7 +329,7 @@ export const generateFindings = inngest.createFunction(
         }
 
         // Insert finding
-        const { data: findingRow, error: findingError } = await supabaseAdmin
+        const { data: findingRow, error: findingError } = await getSupabaseAdmin()
           .from("findings")
           .insert({
             document_id: documentId,
@@ -391,7 +391,7 @@ export const generateFindings = inngest.createFunction(
       // - complete: at least one finding saved (UI shows "X need review" badge)
       const finalStatus = savedCount === 0 ? "analysis_failed" : "complete";
 
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from("documents")
         .update({ status: finalStatus })
         .eq("id", documentId);

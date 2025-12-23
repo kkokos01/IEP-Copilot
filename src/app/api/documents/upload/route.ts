@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Verify user owns the case
-    const { data: caseData, error: caseError } = await supabaseAdmin
+    const { data: caseData, error: caseError } = await getSupabaseAdmin()
       .from("cases")
       .select(`
         id,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Create document record
-    const { data: document, error: docError } = await supabaseAdmin
+    const { data: document, error: docError } = await getSupabaseAdmin()
       .from("documents")
       .insert({
         case_id: caseId,
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get document with ownership check via RLS helper pattern
-    const { data: document, error } = await supabaseAdmin
+    const { data: document, error } = await getSupabaseAdmin()
       .from("documents")
       .select(`
         id,
