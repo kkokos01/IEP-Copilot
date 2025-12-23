@@ -3,6 +3,7 @@
 
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
 import { preparePageTextForStorage } from "./text-normalize";
+import { writeFileSync } from "fs";
 
 // =============================================================================
 // CLIENT INITIALIZATION
@@ -11,15 +12,32 @@ import { preparePageTextForStorage } from "./text-normalize";
 /**
  * Create Document AI client with proper credentials.
  * 
+ * IMPORTANT: This function must be called INSIDE handlers only.
+ * Never call at module level to avoid Vercel build failures.
+ * 
  * Supports two modes:
- * 1. Local dev: Uses GOOGLE_APPLICATION_CREDENTIALS file path (default GCP behavior)
- * 2. Vercel/Production: Uses GCP_SERVICE_ACCOUNT_JSON env var containing the JSON string
+ * 1. Production: Uses GCP_WIF_CREDENTIALS_JSON (Workload Identity Federation)
+ * 2. Local dev: Uses GCP_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS
  */
 function createDocAIClient(): DocumentProcessorServiceClient {
+  // Priority 1: Workload Identity Federation for Vercel/Production
+  const wifJson = process.env.GCP_WIF_CREDENTIALS_JSON;
+  
+  if (wifJson) {
+    // Write WIF config to temp file and point GOOGLE_APPLICATION_CREDENTIALS to it
+    const tempPath = '/tmp/gcp-wif.json';
+    writeFileSync(tempPath, wifJson);
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tempPath;
+    
+    // Let Google auth library handle the external account format automatically
+    return new DocumentProcessorServiceClient();
+  }
+  
+  // Priority 2: Service account JSON string (for local dev if keys are allowed)
   const jsonCredentials = process.env.GCP_SERVICE_ACCOUNT_JSON;
   
   if (jsonCredentials) {
-    // Parse credentials from environment variable (for Vercel)
+    // Parse credentials from environment variable
     try {
       const credentials = JSON.parse(jsonCredentials);
       
@@ -44,18 +62,8 @@ function createDocAIClient(): DocumentProcessorServiceClient {
     }
   }
   
-  // Fall back to default credential lookup (GOOGLE_APPLICATION_CREDENTIALS file)
+  // Priority 3: Default credential lookup (GOOGLE_APPLICATION_CREDENTIALS file or ADC)
   return new DocumentProcessorServiceClient();
-}
-
-// Lazy-initialized client (created on first use)
-let _client: DocumentProcessorServiceClient | null = null;
-
-function getClient(): DocumentProcessorServiceClient {
-  if (!_client) {
-    _client = createDocAIClient();
-  }
-  return _client;
 }
 
 // =============================================================================
@@ -150,7 +158,7 @@ export async function extractWithDocAI(
     );
   }
 
-  const client = getClient();
+  const client = createDocAIClient();
   const processorPath = `projects/${config.projectId}/locations/${config.location}/processors/${config.processorId}`;
 
   try {

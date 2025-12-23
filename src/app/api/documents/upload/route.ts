@@ -12,6 +12,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { inngest } from "@/inngest/client";
 
+// Force Node.js runtime (required for file system operations in WIF auth)
+export const runtime = "nodejs";
+
 // Supabase admin client for server-side operations
 // Note: Initialized inside handlers to avoid import-time errors
 
@@ -27,6 +30,15 @@ interface UploadRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. Validate Content-Type
+    const contentType = request.headers.get("content-type");
+    if (!contentType?.includes("application/json")) {
+      return NextResponse.json(
+        { error: "Content-Type must be application/json" },
+        { status: 415 }
+      );
+    }
+
     // 1. Get auth token from header
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
