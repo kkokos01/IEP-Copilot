@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseClient } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
 
 type Document = Database['public']['Tables']['documents']['Row'] & {
@@ -22,7 +22,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await getSupabaseClient().auth.getUser()
       if (!user) {
         router.push('/')
         return
@@ -85,7 +85,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await getSupabaseClient().auth.signOut()
     router.push('/')
   }
 

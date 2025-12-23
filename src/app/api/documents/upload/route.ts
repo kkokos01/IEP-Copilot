@@ -9,7 +9,7 @@
 // 5. Return document ID for client to poll status
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { inngest } from "@/inngest/client";
 
 // Limits
@@ -18,10 +18,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ["application/pdf"];
 
 // Supabase admin client for server-side operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Note: Initialized inside handlers to avoid import-time errors
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +34,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader.slice(7);
     
     // Verify the token and get user
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json(
@@ -135,7 +132,7 @@ export async function POST(request: NextRequest) {
     const storagePath = `${user.id}/${document.id}/original.pdf`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    const { error: uploadError } = await supabaseAdmin.storage
+    const { error: uploadError } = await getSupabaseAdmin().storage
       .from("documents")
       .upload(storagePath, fileBuffer, {
         contentType: file.type,
@@ -144,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       // Clean up the document record
-      await supabaseAdmin.from("documents").delete().eq("id", document.id);
+      await getSupabaseAdmin().from("documents").delete().eq("id", document.id);
       
       console.error("Failed to upload file:", uploadError);
       return NextResponse.json(
@@ -154,7 +151,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Update document with storage path
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from("documents")
       .update({ storage_path: storagePath })
       .eq("id", document.id);
@@ -193,7 +190,7 @@ export async function GET(request: NextRequest) {
     }
     
     const token = authHeader.slice(7);
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

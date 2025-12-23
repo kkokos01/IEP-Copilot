@@ -8,16 +8,13 @@
 // - #6: Block insertion is idempotent (deletes before insert)
 
 import { inngest } from "../client";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { extractWithRetry, DocAIError } from "@/lib/docai";
 import { splitPdfByPages, getPdfPageCount } from "@/lib/pdf-utils";
 import type { ExtractedPage, ExtractedBlock } from "@/lib/docai";
 
 // Supabase admin client (bypasses RLS for background jobs)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Note: Initialized inside functions to avoid import-time errors
 
 // Document AI config
 const DOCAI_CONFIG = {
@@ -79,7 +76,7 @@ export const processDocument = inngest.createFunction(
 
     // Step 3: Download PDF from storage
     const pdfBytes = await step.run("download-pdf", async () => {
-      const { data, error } = await supabaseAdmin.storage
+      const { data, error } = await getSupabaseAdmin().storage
         .from("documents")
         .download(doc.storage_path);
 
@@ -192,7 +189,7 @@ export const processDocument = inngest.createFunction(
 
       for (const result of extractionResult.results) {
         for (const page of result.pages) {
-          const { error } = await supabaseAdmin.from("document_pages").upsert(
+          const { error } = await getSupabaseAdmin().from("document_pages").upsert(
             {
               document_id: documentId,
               page_number: page.pageNumber,
@@ -243,7 +240,7 @@ export const processDocument = inngest.createFunction(
         // Insert in batches of 100
         for (let i = 0; i < blocksToInsert.length; i += 100) {
           const batch = blocksToInsert.slice(i, i + 100);
-          const { error } = await supabaseAdmin.from("document_blocks").insert(batch);
+          const { error } = await getSupabaseAdmin().from("document_blocks").insert(batch);
 
           if (error) {
             console.error(`Failed to persist block batch:`, error);
@@ -268,7 +265,7 @@ export const processDocument = inngest.createFunction(
           for (const image of images) {
             const imagePath = `${userId}/${documentId}/pages/${image.pageNumber}.webp`;
             
-            const { error: uploadError } = await supabaseAdmin.storage
+            const { error: uploadError } = await getSupabaseAdmin().storage
               .from("documents")
               .upload(imagePath, image.buffer, {
                 contentType: "image/webp",
@@ -280,7 +277,7 @@ export const processDocument = inngest.createFunction(
               continue;
             }
 
-            await supabaseAdmin.from("document_pages").update({
+            await getSupabaseAdmin().from("document_pages").update({
               image_storage_path: imagePath,
               image_width: image.width,
               image_height: image.height,

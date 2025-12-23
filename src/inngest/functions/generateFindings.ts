@@ -10,15 +10,13 @@
 // - NEW: Partial extraction reduces confidence and shows warning
 
 import { inngest } from "../client";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { verifyQuote, normalizeText } from "@/lib/text-normalize";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Note: Supabase admin client is initialized inside functions
+// to avoid import-time errors when environment variables are not set
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -367,7 +365,7 @@ export const generateFindings = inngest.createFunction(
             blocks
           );
 
-          await supabaseAdmin.from("citations").insert({
+          await getSupabaseAdmin().from("citations").insert({
             finding_id: findingRow.id,
             document_id: documentId,
             page_number: citation.page_number,
