@@ -35,7 +35,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
 
   const loadDocumentData = async (documentId: string, userId: string) => {
     // Load document info
-    const { data: doc } = await supabase
+    const { data: doc } = await getSupabaseClient()
       .from('documents')
       .select('*, cases(name, children(name))')
       .eq('id', documentId)
@@ -49,7 +49,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     setDocument(doc)
 
     // Load findings
-    const { data: findingsData } = await supabase
+    const { data: findingsData } = await getSupabaseClient()
       .from('findings')
       .select('*')
       .eq('document_id', documentId)
@@ -58,7 +58,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     setFindings(findingsData || [])
 
     // Load citations
-    const { data: citationsData } = await supabase
+    const { data: citationsData } = await getSupabaseClient()
       .from('citations')
       .select('*')
       .eq('document_id', documentId)

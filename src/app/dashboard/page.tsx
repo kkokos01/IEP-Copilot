@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
   const loadData = async (userId: string) => {
     // Load children
-    const { data: childrenData } = await supabase
+    const { data: childrenData } = await getSupabaseClient()
       .from('children')
       .select('*')
       .eq('user_id', userId)
@@ -41,7 +41,7 @@ export default function DashboardPage() {
     setChildren(childrenData || [])
 
     // Load cases with child info
-    const { data: casesData } = await supabase
+    const { data: casesData } = await getSupabaseClient()
       .from('cases')
       .select('*, children(name)')
       .in('child_id', childrenData?.map(c => c.id) || [])
@@ -54,7 +54,7 @@ export default function DashboardPage() {
     e.preventDefault()
     if (!newChildName.trim()) return
 
-    const { data } = await supabase
+    const { data } = await getSupabaseClient()
       .from('children')
       .insert({ name: newChildName, user_id: user.id })
       .select()
@@ -70,7 +70,7 @@ export default function DashboardPage() {
     e.preventDefault()
     if (!newCaseName.trim() || !selectedChildId) return
 
-    const { data } = await supabase
+    const { data } = await getSupabaseClient()
       .from('cases')
       .insert({ name: newCaseName, child_id: selectedChildId })
       .select('*, children(name)')
