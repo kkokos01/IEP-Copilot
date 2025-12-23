@@ -70,24 +70,47 @@ export default function CasePage({ params }: { params: { id: string } }) {
       const { data: { session } } = await getSupabaseClient().auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
-      // Create form data
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('caseId', params.id)
-      formData.append('type', documentType)
+      // Generate a unique document ID
+      const documentId = crypto.randomUUID()
+      
+      // Upload directly to Supabase Storage
+      const storagePath = `${session.user.id}/${documentId}/original.pdf`
+      const { error: uploadError } = await getSupabaseClient().storage
+        .from('documents')
+        .upload(storagePath, selectedFile, {
+          contentType: selectedFile.type,
+          upsert: false,
+        })
 
-      // Upload to API
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`)
+      }
+
+      // Create document record via API (no file body)
       const response = await fetch('/api/documents/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
         },
-        body: formData,
+        body: JSON.stringify({
+          documentId,
+          storagePath,
+          caseId: params.id,
+          type: documentType,
+          fileName: selectedFile.name,
+          fileSize: selectedFile.size,
+          mimeType: selectedFile.type,
+        }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
+        // Clean up storage if API call fails
+        await getSupabaseClient().storage
+          .from('documents')
+          .remove([storagePath])
         throw new Error(result.error || 'Upload failed')
       }
 
