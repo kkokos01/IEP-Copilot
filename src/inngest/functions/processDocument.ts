@@ -44,7 +44,7 @@ export const processDocument = inngest.createFunction(
     id: "process-document",
     retries: MAX_RETRIES,
     onFailure: async ({ error, event }) => {
-      const { documentId } = event.data;
+      const { documentId } = (event.data as any).documentId || event.data;
       await updateDocumentStatus(documentId, "failed", {
         errorMessage: error.message,
         errorDetails: { stack: error.stack },
@@ -92,8 +92,9 @@ export const processDocument = inngest.createFunction(
 
     // Step 4: Validate file size
     await step.run("validate-file-size", async () => {
-      if (pdfBytes.length > MAX_FILE_SIZE_BYTES) {
-        const sizeMB = (pdfBytes.length / (1024 * 1024)).toFixed(1);
+      const buffer = Buffer.isBuffer(pdfBytes) ? pdfBytes : Buffer.from((pdfBytes as any).data || pdfBytes);
+      if (buffer.length > MAX_FILE_SIZE_BYTES) {
+        const sizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
         throw new FileTooLargeError(
           `This file is ${sizeMB} MB, which exceeds the ${MAX_FILE_SIZE_MB} MB limit. ` +
           `Please upload a smaller file or split your document into parts.`
@@ -103,14 +104,15 @@ export const processDocument = inngest.createFunction(
 
     // Step 5: Check page count and split if needed
     const pdfChunks = await step.run("prepare-chunks", async () => {
-      const pageCount = await getPdfPageCount(pdfBytes);
+      const buffer = Buffer.isBuffer(pdfBytes) ? pdfBytes : Buffer.from((pdfBytes as any).data || pdfBytes);
+      const pageCount = await getPdfPageCount(buffer);
 
       if (pageCount <= DOCAI_PAGE_LIMIT) {
-        return [{ bytes: pdfBytes, pageOffset: 0, pageCount }];
+        return [{ bytes: buffer, pageOffset: 0, pageCount }];
       }
 
       console.log(`Document has ${pageCount} pages, splitting into chunks...`);
-      const chunks = await splitPdfByPages(pdfBytes, DOCAI_PAGE_LIMIT);
+      const chunks = await splitPdfByPages(buffer, DOCAI_PAGE_LIMIT);
       
       return chunks.map((bytes, index) => ({
         bytes,
@@ -136,7 +138,8 @@ export const processDocument = inngest.createFunction(
 
       for (const chunk of pdfChunks) {
         try {
-          const result = await extractWithRetry(chunk.bytes, DOCAI_CONFIG, {
+          const buffer = Buffer.isBuffer(chunk.bytes) ? chunk.bytes : Buffer.from((chunk.bytes as any).data || chunk.bytes);
+          const result = await extractWithRetry(buffer, DOCAI_CONFIG, {
             pageOffset: chunk.pageOffset,
             maxRetries: 2,
           });
@@ -255,7 +258,8 @@ export const processDocument = inngest.createFunction(
         try {
           const { renderPagesToImages } = await import("@/lib/pdf-render");
           
-          const images = await renderPagesToImages(pdfBytes, {
+          const buffer = Buffer.isBuffer(pdfBytes) ? pdfBytes : Buffer.from((pdfBytes as any).data || pdfBytes);
+          const images = await renderPagesToImages(buffer, {
             format: "webp",
             quality: 80,
             maxWidth: 1200,

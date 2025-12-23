@@ -169,7 +169,7 @@ export const generateFindings = inngest.createFunction(
     id: "generate-findings",
     retries: 2,
     onFailure: async ({ error, event }) => {
-      const { documentId } = event.data;
+      const { documentId } = (event.data as any).documentId || event.data;
       await supabaseAdmin
         .from("documents")
         .update({ 
