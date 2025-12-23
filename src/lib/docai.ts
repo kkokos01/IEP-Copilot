@@ -4,6 +4,7 @@
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
 import { preparePageTextForStorage } from "./text-normalize";
 import { writeFileSync } from "fs";
+import { randomUUID } from "crypto";
 
 // =============================================================================
 // CLIENT INITIALIZATION
@@ -24,8 +25,8 @@ function createDocAIClient(): DocumentProcessorServiceClient {
   const wifJson = process.env.GCP_WIF_CREDENTIALS_JSON;
   
   if (wifJson) {
-    // Write WIF config to temp file and point GOOGLE_APPLICATION_CREDENTIALS to it
-    const tempPath = '/tmp/gcp-wif.json';
+    // Write WIF config to temp file with collision-proof path
+    const tempPath = `/tmp/gcp-wif-${process.pid}-${randomUUID()}.json`;
     writeFileSync(tempPath, wifJson);
     process.env.GOOGLE_APPLICATION_CREDENTIALS = tempPath;
     
