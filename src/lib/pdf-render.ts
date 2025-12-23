@@ -88,6 +88,7 @@ export async function renderPagesToImages(
     // Or page-01.png, page-02.png for documents with >9 pages
     let pageNumber = 1;
     
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       // Try different naming patterns
       const possibleNames = [

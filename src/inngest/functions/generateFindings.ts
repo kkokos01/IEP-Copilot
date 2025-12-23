@@ -179,7 +179,7 @@ export const generateFindings = inngest.createFunction(
   },
   { event: "document.extracted" },
   async ({ event, step }) => {
-    const { documentId, pageCount, isPartial, extractedPages, expectedPages } = event.data;
+    const { documentId, isPartial } = event.data;
 
     // Step 1: Load document and case info
     const doc = await step.run("load-document-info", async () => {

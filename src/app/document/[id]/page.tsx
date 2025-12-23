@@ -28,12 +28,12 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
         return
       }
       setUser(user)
-      loadDocumentData(params.id, user.id)
+      loadDocumentData(params.id)
     }
     getUser()
   }, [router, params.id])
 
-  const loadDocumentData = async (documentId: string, userId: string) => {
+  const loadDocumentData = async (documentId: string) => {
     // Load document info
     const { data: doc } = await getSupabaseClient()
       .from('documents')
@@ -207,7 +207,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
                                 {citation.verification_status}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-700 italic">"{citation.quote_text}"</p>
+                            <p className="text-sm text-gray-700 italic">&ldquo;{citation.quote_text}&rdquo;</p>
                           </div>
                         ))}
                       </div>

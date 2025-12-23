@@ -28,12 +28,12 @@ export default function CasePage({ params }: { params: { id: string } }) {
         return
       }
       setUser(user)
-      loadCaseData(params.id, user.id)
+      loadCaseData(params.id)
     }
     getUser()
   }, [router, params.id])
 
-  const loadCaseData = async (caseId: string, userId: string) => {
+  const loadCaseData = async (caseId: string) => {
     // Load case info
     const { data: caseInfo } = await getSupabaseClient()
       .from('cases')
@@ -115,7 +115,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
       }
 
       // Refresh documents list
-      loadCaseData(params.id, user.id)
+      loadCaseData(params.id)
       setSelectedFile(null)
     } catch (error: any) {
       alert(error.message)

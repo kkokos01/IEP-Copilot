@@ -128,15 +128,96 @@ APIs & Services → Enable APIs → Search "Document AI" → Enable
 - Select region (us or eu)
 - Note the processor ID
 
-**4. Create service account:**
-- IAM & Admin → Service Accounts → Create
-- Name: `iep-copilot-docai`
-- Grant role: "Document AI API User"
-- Create JSON key → Download
+**4. Set up authentication (choose ONE method):**
 
-**5. Set environment variable:**
-- `GCP_SERVICE_ACCOUNT_JSON` = entire JSON file contents as a string
-- The code handles `\n` → newline conversion automatically
+---
+
+#### Option A: Workload Identity Federation (Recommended for Production)
+
+**Why use this?** No service account keys to manage, more secure, works with Vercel's OIDC.
+
+**Setup steps:**
+1. **Create Workload Identity Pool:**
+   ```bash
+   gcloud iam workload-identity-pools create vercel-pool \
+     --location=global \
+     --display-name="Vercel Pool"
+   ```
+
+2. **Create Workload Identity Provider:**
+   ```bash
+   gcloud iam workload-identity-pools providers create vercel-provider \
+     --location=global \
+     --workload-identity-pool=vercel-pool \
+     --display-name="Vercel Provider" \
+     --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor" \
+     --issuer-uri="https://token.actions.githubusercontent.com"
+   ```
+
+3. **Create service account:**
+   ```bash
+   gcloud iam service-accounts create iep-copilot-docai \
+     --display-name="IEP Copilot Document AI"
+   ```
+
+4. **Grant Document AI role:**
+   ```bash
+   gcloud projects add-iam-policy-binding PROJECT_ID \
+     --member="serviceAccount:iep-copilot-docai@PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/documentai.apiUser"
+   ```
+
+5. **Allow Vercel to impersonate:**
+   ```bash
+   gcloud iam service-accounts add-iam-policy-binding \
+     iep-copilot-docai@PROJECT_ID.iam.gserviceaccount.com \
+     --role="roles/iam.workloadIdentityUser" \
+     --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/vercel-pool/attribute.actor/VERCEL_PROJECT_ID"
+   ```
+
+6. **In Vercel:**
+   - Go to Project Settings → Environment Variables
+   - Add: `GOOGLE_APPLICATION_CREDENTIALS` with value:
+     ```
+     {
+       "type": "external_account",
+       "audience": "//iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/vercel-pool/providers/vercel-provider",
+       "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+       "token_url": "https://sts.googleapis.com/v1/oauth/token",
+       "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/iep-copilot-docai@PROJECT_ID.iam.gserviceaccount.com:generateAccessToken",
+       "credential_source": {
+         "url": "https://token.actions.githubusercontent.com",
+         "headers": {
+           "Authorization": "Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}",
+           "Accept": "application/vnd.github.v3+json"
+         },
+         "environment_id": "vercel"
+       }
+     }
+     ```
+
+---
+
+#### Option B: Service Account JSON (Local Development Only)
+
+**Note:** Many organizations block JSON key creation. Use only for local development.
+
+1. **Create service account:**
+   - IAM & Admin → Service Accounts → Create
+   - Name: `iep-copilot-docai`
+   - Grant role: "Document AI API User"
+   - Create JSON key → Download
+
+2. **Set environment variable (local only):**
+   - `GOOGLE_APPLICATION_CREDENTIALS` = path to JSON file
+   - OR `GCP_SERVICE_ACCOUNT_JSON` = entire JSON file contents as a string
+
+---
+
+**5. Set common environment variables:**
+- `GCP_PROJECT_ID` = Your GCP project ID
+- `DOCAI_LOCATION` = Processor region (us or eu)
+- `DOCAI_PROCESSOR_ID` = Your processor ID from step 3
 
 ---
 
