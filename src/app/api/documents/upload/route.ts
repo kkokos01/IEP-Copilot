@@ -1,10 +1,10 @@
 // src/app/api/documents/upload/route.ts
-// API route to handle document uploads and trigger processing
+// API route to handle document record creation and trigger processing
 //
-// Flow:
-// 1. Validate request (auth, file type, size)
+// Flow (updated):
+// 1. Validate request (auth, metadata)
 // 2. Create document record in database
-// 3. Upload file to Supabase Storage
+// 3. File is already uploaded to Supabase Storage by client
 // 4. Emit document.uploaded event to Inngest
 // 5. Return document ID for client to poll status
 
@@ -12,13 +12,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { inngest } from "@/inngest/client";
 
-// Limits
-const MAX_FILE_SIZE_MB = 20;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ALLOWED_MIME_TYPES = ["application/pdf"];
-
 // Supabase admin client for server-side operations
 // Note: Initialized inside handlers to avoid import-time errors
+
+interface UploadRequest {
+  documentId: string;
+  storagePath: string;
+  caseId: string;
+  type: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,43 +48,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Parse form data
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const caseId = formData.get("caseId") as string | null;
-    const documentType = (formData.get("type") as string) || "other";
+    // 2. Parse JSON body
+    const body: UploadRequest = await request.json();
+    const { documentId, storagePath, caseId, type, fileName, fileSize, mimeType } = body;
 
-    if (!file) {
+    // Validate required fields
+    if (!documentId || !storagePath || !caseId || !type || !fileName) {
       return NextResponse.json(
-        { error: "No file provided" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    if (!caseId) {
-      return NextResponse.json(
-        { error: "caseId is required" },
-        { status: 400 }
-      );
-    }
-
-    // 3. Validate file
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      return NextResponse.json(
-        { error: `File too large (${sizeMB} MB). Maximum size is ${MAX_FILE_SIZE_MB} MB.` },
-        { status: 400 }
-      );
-    }
-
-    // 4. Verify user owns the case
+    // 3. Verify user owns the case
     const { data: caseData, error: caseError } = await getSupabaseAdmin()
       .from("cases")
       .select(`
@@ -105,16 +86,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Create document record
+    // 4. Create document record
     const { data: document, error: docError } = await getSupabaseAdmin()
       .from("documents")
       .insert({
+        id: documentId, // Use client-generated ID
         case_id: caseId,
-        type: documentType,
-        source_filename: file.name,
-        storage_path: "", // Will update after upload
-        mime_type: file.type,
-        file_size_bytes: file.size,
+        type: type,
+        source_filename: fileName,
+        storage_path: storagePath,
+        mime_type: mimeType,
+        file_size_bytes: fileSize,
         status: "uploaded",
       })
       .select("id")
@@ -128,35 +110,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Upload to Supabase Storage
-    const storagePath = `${user.id}/${document.id}/original.pdf`;
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-    const { error: uploadError } = await getSupabaseAdmin().storage
-      .from("documents")
-      .upload(storagePath, fileBuffer, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      // Clean up the document record
-      await getSupabaseAdmin().from("documents").delete().eq("id", document.id);
-      
-      console.error("Failed to upload file:", uploadError);
-      return NextResponse.json(
-        { error: "Failed to upload file to storage" },
-        { status: 500 }
-      );
-    }
-
-    // 7. Update document with storage path
-    await getSupabaseAdmin()
-      .from("documents")
-      .update({ storage_path: storagePath })
-      .eq("id", document.id);
-
-    // 8. Emit Inngest event to start processing
+    // 5. Emit Inngest event to start processing
     await inngest.send({
       name: "document.uploaded",
       data: {
@@ -165,7 +119,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 9. Return success
+    // 6. Return success
     return NextResponse.json({
       success: true,
       documentId: document.id,
