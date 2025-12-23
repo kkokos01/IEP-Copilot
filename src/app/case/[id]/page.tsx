@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseClient } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
 
 type Document = Database['public']['Tables']['documents']['Row']
@@ -22,7 +22,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await getSupabaseClient().auth.getUser()
       if (!user) {
         router.push('/')
         return
@@ -67,7 +67,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
 
     try {
       // Get auth token
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await getSupabaseClient().auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       // Create form data
@@ -113,7 +113,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await getSupabaseClient().auth.signOut()
     router.push('/')
   }
 
