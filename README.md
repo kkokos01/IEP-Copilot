@@ -8,10 +8,10 @@ AI-powered IEP document analysis with verified citations.
 # 1. Install dependencies
 npm install
 
-# 2. Copy environment template
-cp .env.example .env.local
+# 2. Set up environment (automated)
+./scripts/setup-env.sh
 
-# 3. Fill in .env.local with your credentials (see Setup Guide below)
+# 3. Edit .env.local with your credentials (REQUIRED variables only)
 
 # 4. Start Next.js dev server
 npm run dev
