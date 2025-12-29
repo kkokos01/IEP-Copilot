@@ -2,8 +2,15 @@
 
 AI-powered IEP document analysis with verified citations.
 
-## Quick Start (Local Development)
+## Quick Start
 
+### For Vercel Deployment (Recommended)
+1. Push code to GitHub
+2. Import in Vercel
+3. Configure environment variables in Vercel dashboard (see .env.example for required variables)
+4. Deploy!
+
+### For Local Development
 ```bash
 # 1. Install dependencies
 npm install
