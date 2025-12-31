@@ -3,18 +3,7 @@
 
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
 import { preparePageTextForStorage } from "./text-normalize";
-import { writeFileSync } from "fs";
-import { randomUUID } from "crypto";
-
-// Set up WIF credentials at module load time if available
-const wifJson = process.env.GCP_WIF_CREDENTIALS_JSON;
-if (wifJson) {
-  // Write WIF config to a permanent temp file
-  const tempPath = `/tmp/gcp-wif-${randomUUID()}.json`;
-  writeFileSync(tempPath, wifJson);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = tempPath;
-  console.log('WIF credentials configured at:', tempPath);
-}
+import { GoogleAuth } from "google-auth-library";
 
 // =============================================================================
 // CLIENT INITIALIZATION
@@ -26,27 +15,46 @@ if (wifJson) {
  * IMPORTANT: This function must be called INSIDE handlers only.
  * Never call at module level to avoid Vercel build failures.
  * 
- * Supports two modes:
- * 1. Production: Uses GCP_WIF_CREDENTIALS_JSON (Workload Identity Federation)
- * 2. Local dev: Uses GCP_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS
+ * Uses service account key for Vercel (recommended best practice)
  */
 function createDocAIClient(): DocumentProcessorServiceClient {
-  // Check if we're in production with WIF
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    // WIF is already configured at module load time
-    const projectId = process.env.GCP_PROJECT_ID;
-    
-    if (!projectId) {
+  // Get project ID
+  const projectId = process.env.GCP_PROJECT_ID;
+  
+  if (!projectId) {
+    throw new DocAIError(
+      "GCP_PROJECT_ID environment variable is required",
+      "MISSING_PROJECT_ID",
+      false
+    );
+  }
+
+  // Priority 1: Service Account Key (Vercel production)
+  const serviceAccountKeyStr = process.env.GCP_SERVICE_ACCOUNT_KEY;
+  
+  if (serviceAccountKeyStr) {
+    try {
+      const credentials = JSON.parse(serviceAccountKeyStr);
+      
+      // Initialize auth with explicit credentials
+      const auth = new GoogleAuth({
+        projectId: projectId,
+        credentials: credentials,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform']
+      });
+
+      // Create client with explicit auth
+      return new DocumentProcessorServiceClient({
+        projectId: projectId,
+        authClient: auth,
+      });
+    } catch (error: any) {
       throw new DocAIError(
-        "GCP_PROJECT_ID environment variable is required",
-        "MISSING_PROJECT_ID",
+        `Failed to parse GCP_SERVICE_ACCOUNT_KEY: ${error.message}`,
+        "INVALID_CREDENTIALS",
         false
       );
     }
-
-    return new DocumentProcessorServiceClient({
-      projectId: projectId,
-    });
   }
   
   // Priority 2: Service account JSON string (for local dev if keys are allowed)
