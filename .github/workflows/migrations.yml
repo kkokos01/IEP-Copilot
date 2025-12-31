@@ -1,17 +1,5 @@
 # .github/workflows/migrations.yml
-# Automated database migrations for IEP Copilot
-#
 # NOTE: This workflow is DISABLED - we apply migrations manually
-# Flow:
-# - PR to main → Apply migrations to DEV Supabase (for testing)
-# - Merge to main → Apply migrations to PROD Supabase
-#
-# Required secrets:
-# - SUPABASE_ACCESS_TOKEN: Your Supabase access token (from dashboard)
-# - SUPABASE_DEV_PROJECT_REF: Project reference for dev (e.g., "abcdefghijkl")
-# - SUPABASE_PROD_PROJECT_REF: Project reference for prod
-# - SUPABASE_DEV_DB_PASSWORD: Database password for dev project
-# - SUPABASE_PROD_DB_PASSWORD: Database password for prod project
 
 name: Database Migrations (DISABLED)
 
