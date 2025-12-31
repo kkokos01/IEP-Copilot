@@ -11,14 +11,20 @@ type Document = Database['public']['Tables']['documents']['Row'] & {
 type Finding = Database['public']['Tables']['findings']['Row']
 type Citation = Database['public']['Tables']['citations']['Row']
 
-export default function DocumentPage({ params }: { params: { id: string } }) {
+export default function DocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const [user, setUser] = useState<any>(null)
   const [document, setDocument] = useState<Document | null>(null)
   const [findings, setFindings] = useState<Finding[]>([])
   const [citations, setCitations] = useState<Citation[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null)
+  const [documentId, setDocumentId] = useState<string | null>(null)
   const router = useRouter()
+
+  // Handle async params
+  useEffect(() => {
+    params.then((p) => setDocumentId(p.id))
+  }, [params])
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,10 +34,12 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
         return
       }
       setUser(user)
-      loadDocumentData(params.id)
+      if (documentId) {
+        loadDocumentData(documentId)
+      }
     }
     getUser()
-  }, [router, params.id])
+  }, [router, documentId])
 
   const loadDocumentData = async (documentId: string) => {
     // Load document info

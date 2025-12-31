@@ -10,7 +10,7 @@ type Case = Database['public']['Tables']['cases']['Row'] & {
   children: { name: string }
 }
 
-export default function CasePage({ params }: { params: { id: string } }) {
+export default function CasePage({ params }: { params: Promise<{ id: string }> }) {
   const [user, setUser] = useState<any>(null)
   const [caseData, setCaseData] = useState<Case | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
@@ -18,7 +18,13 @@ export default function CasePage({ params }: { params: { id: string } }) {
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentType, setDocumentType] = useState<string>('other')
+  const [caseId, setCaseId] = useState<string | null>(null)
   const router = useRouter()
+
+  // Handle async params
+  useEffect(() => {
+    params.then((p) => setCaseId(p.id))
+  }, [params])
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,10 +34,12 @@ export default function CasePage({ params }: { params: { id: string } }) {
         return
       }
       setUser(user)
-      loadCaseData(params.id)
+      if (caseId) {
+        loadCaseData(caseId)
+      }
     }
     getUser()
-  }, [router, params.id])
+  }, [router, caseId])
 
   const loadCaseData = async (caseId: string) => {
     // Load case info
@@ -96,7 +104,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
         body: JSON.stringify({
           documentId,
           storagePath,
-          caseId: params.id,
+          caseId: caseId,
           type: documentType,
           fileName: selectedFile.name,
           fileSize: selectedFile.size,
@@ -115,7 +123,7 @@ export default function CasePage({ params }: { params: { id: string } }) {
       }
 
       // Refresh documents list
-      loadCaseData(params.id)
+      loadCaseData(caseId)
       setSelectedFile(null)
     } catch (error: any) {
       alert(error.message)
