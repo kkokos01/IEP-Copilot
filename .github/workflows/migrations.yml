@@ -1,6 +1,7 @@
 # .github/workflows/migrations.yml
 # Automated database migrations for IEP Copilot
 #
+# NOTE: This workflow is DISABLED - we apply migrations manually
 # Flow:
 # - PR to main → Apply migrations to DEV Supabase (for testing)
 # - Merge to main → Apply migrations to PROD Supabase
@@ -12,7 +13,7 @@
 # - SUPABASE_DEV_DB_PASSWORD: Database password for dev project
 # - SUPABASE_PROD_DB_PASSWORD: Database password for prod project
 
-name: Database Migrations
+name: Database Migrations (DISABLED)
 
 on:
   pull_request:
@@ -25,73 +26,9 @@ on:
       - 'supabase/migrations/**'
 
 jobs:
-  # Run on PRs: Apply to DEV for testing
-  migrate-dev:
-    if: github.event_name == 'pull_request'
+  # Disabled - we apply migrations manually
+  no-op:
     runs-on: ubuntu-latest
-    name: Migrate DEV Database
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Link to DEV project
-        run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_DEV_PROJECT_REF }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-      - name: Push migrations to DEV
-        run: |
-          supabase db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DEV_DB_PASSWORD }}
-
-      - name: Comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✅ Database migrations applied to **DEV** environment successfully.'
-            })
-
-  # Run on merge to main: Apply to PROD
-  migrate-prod:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    name: Migrate PROD Database
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Link to PROD project
-        run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_PROD_PROJECT_REF }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-      - name: Push migrations to PROD
-        run: |
-          supabase db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_PROD_DB_PASSWORD }}
-
-      - name: Create deployment record
-        run: |
-          echo "Migrations applied to PROD at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_STEP_SUMMARY
+      - name: Skip migrations
+        run: echo "Migrations are disabled - applied manually"
