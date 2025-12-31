@@ -3,7 +3,6 @@
 
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
 import { preparePageTextForStorage } from "./text-normalize";
-import { GoogleAuth } from "google-auth-library";
 
 // =============================================================================
 // CLIENT INITIALIZATION
@@ -36,17 +35,10 @@ function createDocAIClient(): DocumentProcessorServiceClient {
     try {
       const credentials = JSON.parse(serviceAccountKeyStr);
       
-      // Initialize auth with explicit credentials
-      const auth = new GoogleAuth({
-        projectId: projectId,
-        credentials: credentials,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform']
-      });
-
-      // Create client with explicit auth
+      // Create client with explicit credentials (bypasses auth library type issues)
       return new DocumentProcessorServiceClient({
         projectId: projectId,
-        authClient: auth,
+        credentials: credentials,
       });
     } catch (error: any) {
       throw new DocAIError(
