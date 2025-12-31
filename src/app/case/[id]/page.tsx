@@ -123,7 +123,9 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
       }
 
       // Refresh documents list
-      loadCaseData(caseId)
+      if (caseId) {
+        loadCaseData(caseId)
+      }
       setSelectedFile(null)
     } catch (error: any) {
       alert(error.message)
