@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
-import { writeFileSync } from "fs";
+import { writeFileSync, unlinkSync } from "fs";
 import { randomUUID } from "crypto";
 
 export async function GET() {
@@ -68,8 +68,8 @@ export async function GET() {
       // Clean up temp file
       if (tempPath) {
         try {
-          require('fs').unlinkSync(tempPath);
-        } catch (e) {
+          unlinkSync(tempPath);
+        } catch {
           // Ignore cleanup errors
         }
       }
