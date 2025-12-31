@@ -3,8 +3,6 @@
 
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
 import { preparePageTextForStorage } from "./text-normalize";
-import { writeFileSync, unlinkSync } from "fs";
-import { randomUUID } from "crypto";
 import { GoogleAuth } from "google-auth-library";
 
 // =============================================================================
@@ -30,7 +28,7 @@ function createDocAIClient(): DocumentProcessorServiceClient {
     let wifConfig;
     try {
       wifConfig = JSON.parse(wifJson);
-    } catch (error) {
+    } catch {
       throw new DocAIError(
         "Failed to parse GCP_WIF_CREDENTIALS_JSON. Ensure it contains valid JSON.",
         "INVALID_CREDENTIALS",
