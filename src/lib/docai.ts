@@ -3,7 +3,18 @@
 
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
 import { preparePageTextForStorage } from "./text-normalize";
-import { GoogleAuth } from "google-auth-library";
+import { writeFileSync } from "fs";
+import { randomUUID } from "crypto";
+
+// Set up WIF credentials at module load time if available
+const wifJson = process.env.GCP_WIF_CREDENTIALS_JSON;
+if (wifJson) {
+  // Write WIF config to a permanent temp file
+  const tempPath = `/tmp/gcp-wif-${randomUUID()}.json`;
+  writeFileSync(tempPath, wifJson);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = tempPath;
+  console.log('WIF credentials configured at:', tempPath);
+}
 
 // =============================================================================
 // CLIENT INITIALIZATION
@@ -20,70 +31,22 @@ import { GoogleAuth } from "google-auth-library";
  * 2. Local dev: Uses GCP_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS
  */
 function createDocAIClient(): DocumentProcessorServiceClient {
-  // Priority 1: Workload Identity Federation for Vercel/Production
-  const wifJson = process.env.GCP_WIF_CREDENTIALS_JSON;
-  
-  if (wifJson) {
-    // Parse WIF config
-    let wifConfig;
-    try {
-      wifConfig = JSON.parse(wifJson);
-    } catch {
-      throw new DocAIError(
-        "Failed to parse GCP_WIF_CREDENTIALS_JSON. Ensure it contains valid JSON.",
-        "INVALID_CREDENTIALS",
-        false
-      );
-    }
-
-    // Validate required fields
-    if (!wifConfig.type || wifConfig.type !== "external_account") {
-      throw new DocAIError(
-        "WIF config must have type 'external_account'",
-        "INVALID_CREDENTIALS",
-        false
-      );
-    }
-
-    if (!wifConfig.audience || !wifConfig.credential_source) {
-      throw new DocAIError(
-        "Invalid WIF configuration: missing audience or credential_source",
-        "INVALID_CREDENTIALS",
-        false
-      );
-    }
-
-    // Get project ID
+  // Check if we're in production with WIF
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // WIF is already configured at module load time
     const projectId = process.env.GCP_PROJECT_ID;
+    
     if (!projectId) {
       throw new DocAIError(
-        "GCP_PROJECT_ID environment variable is required for WIF authentication",
+        "GCP_PROJECT_ID environment variable is required",
         "MISSING_PROJECT_ID",
         false
       );
     }
 
-    try {
-      // Create auth client explicitly for external account
-      const auth = new GoogleAuth({
-        projectId: projectId,
-        credentials: wifConfig,
-      });
-
-      // Create Document AI client with the auth client
-      const client = new DocumentProcessorServiceClient({
-        projectId: projectId,
-        auth: auth,
-      });
-      
-      return client;
-    } catch (error: any) {
-      throw new DocAIError(
-        `Failed to create Document AI client with WIF: ${error.message}`,
-        "CLIENT_CREATION_FAILED",
-        false
-      );
-    }
+    return new DocumentProcessorServiceClient({
+      projectId: projectId,
+    });
   }
   
   // Priority 2: Service account JSON string (for local dev if keys are allowed)
