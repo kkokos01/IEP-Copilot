@@ -15,6 +15,7 @@ const envSchema = z.object({
   GCP_PROJECT_ID: z.string().min(1),
   DOCAI_LOCATION: z.enum(['us', 'eu']),
   DOCAI_PROCESSOR_ID: z.string().min(1),
+  GCP_SERVICE_ACCOUNT_KEY: z.string().optional(),
   GCP_SERVICE_ACCOUNT_JSON: z.string().optional(),
   GCP_WIF_CREDENTIALS_JSON: z.string().optional(),
   

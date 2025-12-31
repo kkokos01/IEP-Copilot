@@ -198,6 +198,15 @@ export async function extractWithDocAI(
       throw new DocAIError("No document in response", "EMPTY_RESPONSE", false);
     }
 
+    // Debug: Log what Document AI returned
+    console.log("Document AI response:", {
+      hasPages: !!document.pages,
+      pagesCount: document.pages?.length || 0,
+      hasText: !!document.text,
+      textLength: document.text?.length || 0,
+      textPreview: document.text?.substring(0, 200) || "No text"
+    });
+
     // Extract pages
     const pages = extractPages(document, pageOffset);
     

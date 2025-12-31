@@ -185,6 +185,9 @@ export const processDocument = inngest.createFunction(
 
     // Step 7: Persist extracted pages
     const totalPages = await step.run("persist-pages", async () => {
+      console.log("DEBUG: About to save pages. Results count:", extractionResult.results.length);
+      console.log("DEBUG: Total pages to save:", extractionResult.results.reduce((sum, r) => sum + r.pages.length, 0));
+      
       let pageCount = 0;
 
       for (const result of extractionResult.results) {
