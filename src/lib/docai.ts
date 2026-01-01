@@ -30,11 +30,14 @@ function createDocAIClient(): DocumentProcessorServiceClient {
 
   // Priority 1: Service Account Key (Vercel production)
   const serviceAccountKeyStr = process.env.GCP_SERVICE_ACCOUNT_KEY;
-  
+
   if (serviceAccountKeyStr) {
     try {
-      const credentials = JSON.parse(serviceAccountKeyStr);
-      
+      // CRITICAL: Vercel env vars store private keys with literal "\n"
+      // instead of actual newlines. Fix by replacing before JSON parse.
+      const fixedKeyStr = serviceAccountKeyStr.replace(/\\n/g, "\n");
+      const credentials = JSON.parse(fixedKeyStr);
+
       // Create client with explicit credentials (bypasses auth library type issues)
       return new DocumentProcessorServiceClient({
         projectId: projectId,
