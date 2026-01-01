@@ -4,6 +4,11 @@
 // Tests the complete document processing pipeline
 // Uses the NEW upload flow (direct to Supabase Storage + JSON API)
 
+// Load environment variables from .env.local
+import { config } from 'dotenv';
+import { resolve } from 'path';
+config({ path: resolve(process.cwd(), '.env.local') });
+
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
@@ -12,10 +17,11 @@ import { join } from 'path';
 // Configuration
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iep-copilot.vercel.app';
 
-// Test data
-const TEST_EMAIL = `smoke-test-${Date.now()}@example.com`;
+// Test data - use a realistic email format
+const TEST_EMAIL = `smoke.test.${Date.now()}@gmail.com`;
 const TEST_PASSWORD = 'test-password-123';
 const TEST_CHILD_NAME = 'Test Child';
 const TEST_CASE_NAME = 'Test Case';
@@ -50,24 +56,27 @@ async function runSmokeTest() {
   log('================================', 'blue');
   
   // Validate environment
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_KEY) {
     log('❌ Missing Supabase environment variables', 'red');
-    log('   Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY', 'yellow');
+    log('   Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY', 'yellow');
     process.exit(1);
   }
 
+  // Use anon key for auth (user-facing), service key for admin operations
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   let testUser: any = null;
   let testChild: any = null;
   let testCase: any = null;
   let testDocument: any = null;
 
   try {
-    // Step 1: Create test user
+    // Step 1: Create test user (using admin API to avoid sending emails)
     log('\n📝 Step 1: Creating test user...', 'blue');
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: TEST_EMAIL,
-      password: TEST_PASSWORD
+      password: TEST_PASSWORD,
+      email_confirm: true, // Auto-confirm to avoid sending verification email
     });
 
     if (authError) {
@@ -78,9 +87,22 @@ async function runSmokeTest() {
     testUser = authData.user;
     log(`✅ User created: ${testUser.id}`, 'green');
 
-    // Step 2: Create test child
+    // Sign in as the user to get a session
+    log('   Signing in as test user...', 'blue');
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+    });
+
+    if (signInError) {
+      log(`❌ Failed to sign in: ${signInError.message}`, 'red');
+      throw signInError;
+    }
+    log('   ✅ Signed in successfully', 'green');
+
+    // Step 2: Create test child (using admin client to bypass RLS)
     log('\n👶 Step 2: Creating test child...', 'blue');
-    const { data: childData, error: childError } = await supabase
+    const { data: childData, error: childError } = await supabaseAdmin
       .from('children')
       .insert({
         name: TEST_CHILD_NAME,
@@ -97,9 +119,9 @@ async function runSmokeTest() {
     testChild = childData;
     log(`✅ Child created: ${testChild.id}`, 'green');
 
-    // Step 3: Create test case
+    // Step 3: Create test case (using admin client to bypass RLS)
     log('\n📁 Step 3: Creating test case...', 'blue');
-    const { data: caseData, error: caseError } = await supabase
+    const { data: caseData, error: caseError } = await supabaseAdmin
       .from('cases')
       .insert({
         name: TEST_CASE_NAME,
@@ -123,11 +145,11 @@ async function runSmokeTest() {
     const documentId = randomUUID();
     const storagePath = `${testUser.id}/${documentId}/original.pdf`;
     
-    // Step 4a: Upload directly to Supabase Storage
+    // Step 4a: Upload directly to Supabase Storage (using admin to bypass RLS)
     log('   4a: Uploading to Supabase Storage...', 'blue');
     const testPDF = createTestPDF();
-    
-    const { error: uploadError } = await supabase.storage
+
+    const { error: uploadError } = await supabaseAdmin.storage
       .from('documents')
       .upload(storagePath, testPDF, {
         contentType: 'application/pdf',
@@ -200,18 +222,20 @@ async function runSmokeTest() {
         continue;
       }
 
-      const status = await statusResponse.json();
-      log(`   Status: ${status.status} (attempt ${attempts}/${maxAttempts})`, 'blue');
+      const statusResponse2 = await statusResponse.json();
+      const docStatus = statusResponse2.document?.status || statusResponse2.status;
+      log(`   Status: ${docStatus} (attempt ${attempts}/${maxAttempts})`, 'blue');
 
-      if (status.status === 'complete') {
+      if (docStatus === 'complete') {
         log(`✅ Processing complete!`, 'green');
-        log(`   Pages: ${status.pageCount}`, 'blue');
+        log(`   Pages: ${statusResponse2.document?.pageCount || statusResponse2.pageCount}`, 'blue');
         break;
       }
 
-      if (status.status === 'failed' || status.status === 'analysis_failed') {
-        log(`❌ Processing failed: ${status.errorMessage}`, 'red');
-        throw new Error(`Processing failed: ${status.errorMessage}`);
+      if (docStatus === 'failed' || docStatus === 'analysis_failed') {
+        const errMsg = statusResponse2.document?.errorMessage || statusResponse2.errorMessage;
+        log(`❌ Processing failed: ${errMsg}`, 'red');
+        throw new Error(`Processing failed: ${errMsg}`);
       }
     }
 
@@ -220,10 +244,10 @@ async function runSmokeTest() {
       log('   This might be normal for large documents', 'yellow');
     }
 
-    // Step 6: Verify findings and citations
+    // Step 6: Verify findings and citations (using admin to bypass RLS)
     log('\n🔍 Step 6: Verifying findings and citations...', 'blue');
-    
-    const { data: findings, error: findingsError } = await supabase
+
+    const { data: findings, error: findingsError } = await supabaseAdmin
       .from('findings')
       .select('*')
       .eq('document_id', testDocument.id);
@@ -235,7 +259,7 @@ async function runSmokeTest() {
 
     log(`✅ Found ${findings?.length || 0} findings`, 'green');
 
-    const { data: citations, error: citationsError } = await supabase
+    const { data: citations, error: citationsError } = await supabaseAdmin
       .from('citations')
       .select('*')
       .eq('document_id', testDocument.id);
@@ -265,21 +289,29 @@ async function runSmokeTest() {
     log(`Error: ${error}`, 'red');
     return false;
   } finally {
-    // Cleanup (optional - commented out for debugging)
-    /*
-    if (testDocument) {
-      await supabase.from('documents').delete().eq('id', testDocument.id);
+    // Cleanup test data to avoid accumulating test users
+    log('\n🧹 Cleaning up test data...', 'blue');
+    try {
+      if (testDocument) {
+        await supabaseAdmin.from('documents').delete().eq('id', testDocument.id);
+        log('   Deleted test document', 'green');
+      }
+      if (testCase) {
+        await supabaseAdmin.from('cases').delete().eq('id', testCase.id);
+        log('   Deleted test case', 'green');
+      }
+      if (testChild) {
+        await supabaseAdmin.from('children').delete().eq('id', testChild.id);
+        log('   Deleted test child', 'green');
+      }
+      if (testUser) {
+        await supabaseAdmin.auth.admin.deleteUser(testUser.id);
+        log('   Deleted test user', 'green');
+      }
+      log('✅ Cleanup complete', 'green');
+    } catch (cleanupError) {
+      log(`⚠️  Cleanup failed: ${cleanupError}`, 'yellow');
     }
-    if (testCase) {
-      await supabase.from('cases').delete().eq('id', testCase.id);
-    }
-    if (testChild) {
-      await supabase.from('children').delete().eq('id', testChild.id);
-    }
-    if (testUser) {
-      await supabase.auth.admin.deleteUser(testUser.id);
-    }
-    */
   }
 }
 

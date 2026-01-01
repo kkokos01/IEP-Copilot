@@ -52,3 +52,8 @@ test-docs/**/*.doc
 # But allow test-docs/README.md and test-expectations.md
 !test-docs/README.md
 !test-docs/test-expectations.md
+
+# Utility scripts with credentials (never commit)
+scripts/check-databases.js
+scripts/fix-databases.js
+scripts/verify-column.js
