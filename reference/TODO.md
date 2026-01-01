@@ -1,30 +1,46 @@
 # TODO
 
 ## 🎯 Focus This Week
-**Week of Jan 6-12, 2025**
+**Week of Jan 1-7, 2026**
 
-- [ ] **Fix OCR normalization** for better citation verification accuracy
-- [ ] **Implement user-friendly error messages** with actionable guidance  
+- [x] **Fix OCR normalization** for better citation verification accuracy ✅ DONE
+- [x] **Implement user-friendly error messages** with actionable guidance ✅ DONE
+- [x] **Set up monitoring and alerting** for document processing failures ✅ DONE (Sentry)
 - [ ] **Add document processing progress indicators** with real-time updates
 - [ ] **Create onboarding flow** for beta users with tutorial
-- [ ] **Set up monitoring and alerting** for document processing failures
 
-### Critical Path Items
-- [ ] **Fix OCR normalization** for better citation verification accuracy
-  - Implement improved text normalization in `text-normalize.ts`
-  - Add fuzzy matching as fallback with `ENABLE_FUZZY_VERIFICATION` flag
-  - Test with real-world scanned IEP documents
-  
-- [ ] **Implement user-friendly error messages**
-  - Replace technical errors with actionable guidance
-  - Add error codes for better support
-  - Create error message component library
-  
+### Completed This Sprint ✅
+
+#### OCR Normalization & Adaptive Fuzzy Matching (2026-01-01)
+- ✅ Enabled fuzzy verification by default (`ENABLE_FUZZY_VERIFICATION !== "false"`)
+- ✅ Implemented adaptive multi-tier verification: exact → normalized → fuzzy
+- ✅ Added verification statistics logging for monitoring OCR quality
+- ✅ Store `verification_method` in citations for tracking
+- ✅ Added database migration `002_add_verification_method.sql`
+- 🔲 Still need: Test with real-world scanned IEP documents
+
+#### User-Friendly Error Messages (2026-01-01)
+- ✅ Replaced technical errors with user-friendly messages
+- ✅ Added error codes for support tracking (AUTH_INVALID, FILE_TOO_LARGE, etc.)
+- ✅ Added helpful hints for each error type
+- ✅ Added file type and size validation
+- ✅ Added status messages for document processing states
+- 🔲 Still need: Create error message component library (frontend)
+
+#### Monitoring & Alerting (2026-01-01)
+- ✅ Installed and configured Sentry (`@sentry/nextjs`)
+- ✅ Created client, server, and edge config files
+- ✅ Updated `next.config.js` with Sentry wrapper
+- ✅ Added Sentry env vars to `.env.example`
+- 🔲 Still need: Configure Sentry DSN in production
+
+### Critical Path Items (Remaining)
+
 - [ ] **Add document processing progress indicators**
   - Real-time WebSocket updates via Inngest
   - Show current step (uploading → extracting → analyzing)
   - Display estimated time remaining
-  
+
 - [ ] **Create onboarding flow for beta users**
   - Welcome tour of key features
   - Sample document upload tutorial

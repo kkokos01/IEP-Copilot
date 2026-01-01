@@ -281,6 +281,110 @@
 
 ---
 
+## 2026-01-01: Adaptive Fuzzy Verification by Default
+
+**Status**: Implemented
+**Decision**: Enable fuzzy citation verification by default, with adaptive fallback strategy
+**Context**: Citation verification was failing too often on OCR documents
+
+### Alternatives Considered
+- **Fuzzy disabled by default**:
+  - Previous approach
+  - Required manual opt-in
+  - Led to many false "needs_review" findings
+- **Fuzzy only (no exact/normalized)**:
+  - Simpler but less accurate
+  - Could produce false positives
+- **ML-based verification**:
+  - More sophisticated but complex
+  - Overkill for current needs
+
+### Rationale
+- OCR errors are common in scanned IEP documents
+- Multi-tier approach (exact → normalized → fuzzy) is most accurate
+- Logging match statistics helps monitor OCR quality
+- Default-on improves user experience without configuration
+- Can still disable for debugging via env var
+
+### Consequences
+- ✅ Higher citation verification success rate
+- ✅ Better handling of OCR artifacts
+- ✅ Statistics logging for quality monitoring
+- ✅ Tracks verification_method for analytics
+- ❌ Slightly more compute for fuzzy matching
+- ❌ Potential for false positives (mitigated by 0.85 threshold)
+
+---
+
+## 2026-01-01: Sentry for Error Tracking
+
+**Status**: Implemented
+**Decision**: Use Sentry for production error monitoring
+**Context**: Need visibility into errors during beta launch
+
+### Alternatives Considered
+- **Vercel Analytics only**:
+  - Limited error details
+  - No stack traces
+- **LogRocket**:
+  - More expensive
+  - Session recording not needed
+- **Self-hosted (Grafana/Loki)**:
+  - More control but maintenance overhead
+  - Overkill for current scale
+
+### Rationale
+- Industry standard for error tracking
+- Free tier sufficient for beta
+- Excellent Next.js integration
+- Session replay for debugging
+- Alerts and dashboards included
+
+### Consequences
+- ✅ Real-time error alerts
+- ✅ Stack traces with source maps
+- ✅ Session replay for reproduction
+- ✅ Performance monitoring included
+- ❌ Additional dependency
+- ❌ Requires DSN configuration per environment
+
+---
+
+## 2026-01-01: Structured Error Responses with Codes
+
+**Status**: Implemented
+**Decision**: Replace generic errors with structured responses including codes and hints
+**Context**: Users were seeing unhelpful "Internal server error" messages
+
+### Alternatives Considered
+- **Generic error messages**:
+  - Previous approach
+  - Poor user experience
+  - Difficult to debug
+- **Detailed technical errors**:
+  - Too much information for users
+  - Security concerns
+- **Error codes only**:
+  - Not user-friendly
+  - Requires lookup table
+
+### Rationale
+- User-friendly messages reduce support burden
+- Error codes enable support to quickly identify issues
+- Hints provide actionable next steps
+- Consistent structure enables frontend error handling
+- Technical details logged server-side only
+
+### Consequences
+- ✅ Better user experience
+- ✅ Faster support resolution
+- ✅ Consistent error format
+- ✅ Actionable guidance for users
+- ❌ More code to maintain
+- ❌ Must update codes when adding new errors
+
+---
+
 ## Pending Decisions
 
 ### PDF Rendering Strategy

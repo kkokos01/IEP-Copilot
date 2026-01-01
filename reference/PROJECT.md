@@ -4,9 +4,9 @@
 
 **IEP Copilot** is an AI-powered platform that helps parents and advocates analyze special education documents with verified citations.
 
-**Status**: Working MVP (v3.1) preparing for beta users  
-**Last Updated**: 2025-01-06  
-**Current Focus**: Beta preparation - stabilizing document processing pipeline and improving user experience  
+**Status**: Working MVP (v3.2) preparing for beta users
+**Last Updated**: 2026-01-01
+**Current Focus**: Beta preparation - OCR accuracy improvements, error handling, and monitoring  
 
 ## Quick Links
 - [📋 TODO.md](./TODO.md) - Current sprint focus and roadmap
@@ -56,9 +56,9 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 ## Known Issues & Blockers
 
 ### Current Blockers
-- **OCR Quality**: Poor quality PDFs affect citation verification accuracy
-- **Error Messages**: Need more user-friendly error messages for processing failures
-- **Large Documents**: Processing timeouts on PDFs >100 pages
+- **OCR Quality**: ✅ IMPROVED - Adaptive fuzzy matching now enabled by default
+- **Error Messages**: ✅ FIXED - User-friendly errors with codes and hints
+- **Large Documents**: Processing timeouts on PDFs >100 pages (still needs checkpointing)
 
 ### Security Concerns
 - ⚠️ Real API keys were previously in `.env.example` (now fixed)
@@ -67,8 +67,8 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 
 ### Technical Debt
 - PDF rendering is optional and should be removed if not used
-- Some error handling could be more granular
-- Monitoring and alerting not fully configured
+- ✅ Error handling improved in upload API (structured errors with codes)
+- ✅ Monitoring configured (Sentry) - needs DSN in production
 
 ## Development Guidelines
 
@@ -93,8 +93,11 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - ✅ Smoke test passing
 - ✅ Automated migrations working
 - ✅ Preview deployments functional
+- ✅ Sentry error tracking configured
+- ✅ Adaptive fuzzy verification enabled
 - ⚠️ Need beta user feedback
-- ⚠️ Monitoring not fully configured
+- ⚠️ Need to apply migration 002 to database
+- ⚠️ Need to configure Sentry DSN in production
 
 ## Target Users
 
