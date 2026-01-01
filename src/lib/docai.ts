@@ -77,7 +77,7 @@ function createDocAIClient(): DocumentProcessorServiceClient {
     }
   }
   
-  // Priority 2: Service account JSON string (for local dev if keys are allowed)
+  // Priority 3: Service account JSON string (for local dev if keys are allowed)
   const jsonCredentials = process.env.GCP_SERVICE_ACCOUNT_JSON;
   
   if (jsonCredentials) {
@@ -106,7 +106,7 @@ function createDocAIClient(): DocumentProcessorServiceClient {
     }
   }
   
-  // Priority 3: Default credential lookup (GOOGLE_APPLICATION_CREDENTIALS file or ADC)
+  // Priority 4: Default credential lookup (GOOGLE_APPLICATION_CREDENTIALS file or ADC)
   return new DocumentProcessorServiceClient();
 }
 
