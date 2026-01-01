@@ -452,6 +452,20 @@
 
 ## Pending Decisions
 
+### Migrate to Vercel OIDC for GCP Authentication
+**Context**: Currently using Base64-encoded service account keys. OIDC is more secure.
+**Priority**: High - should implement before production launch
+**Options**:
+- Keep Base64 credentials (current - works but requires key rotation)
+- Migrate to Vercel OIDC federation (recommended - no credentials to manage)
+
+**Requirements for OIDC**:
+1. Create GCP Workload Identity Pool and Provider
+2. Configure service account with workload identity binding
+3. Set 5 env vars in Vercel (project ID, number, SA email, pool ID, provider ID)
+4. Update code to use `@vercel/oidc` package
+5. See: https://vercel.com/docs/security/secure-backend-access/oidc/gcp
+
 ### PDF Rendering Strategy
 **Context**: Optional server-side PDF rendering for highlighting  
 **Options**: 

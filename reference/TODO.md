@@ -74,6 +74,12 @@
   - Better timeout communication to users
 
 ### Infrastructure & Monitoring
+- [ ] **Migrate to Vercel OIDC for GCP authentication**
+  - Currently using Base64-encoded service account keys
+  - OIDC eliminates credential management entirely
+  - See DECISIONS.md for detailed requirements
+  - Docs: https://vercel.com/docs/security/secure-backend-access/oidc/gcp
+
 - [ ] **Set up monitoring and alerting**
   - Document processing failure rate alerts
   - LLM cost tracking and budgets

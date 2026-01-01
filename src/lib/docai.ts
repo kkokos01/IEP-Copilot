@@ -28,42 +28,49 @@ function createDocAIClient(): DocumentProcessorServiceClient {
     );
   }
 
-  // Priority 1: Service Account Key (Vercel production)
-  const serviceAccountKeyStr = process.env.GCP_SERVICE_ACCOUNT_KEY;
+  // Priority 1: Base64-encoded service account key (recommended for Vercel)
+  // This avoids all newline/escape issues with JSON in env vars
+  const base64Key = process.env.GCP_SERVICE_ACCOUNT_KEY_BASE64;
 
-  if (serviceAccountKeyStr) {
+  if (base64Key) {
     try {
-      // CRITICAL: Vercel env vars can mangle JSON in various ways:
-      // 1. Literal \n instead of newlines in private_key
-      // 2. Double-escaped \\n
-      // 3. Other escaped characters
-      // Parse the JSON first, then fix the private_key field specifically
-      let credentials: Record<string, unknown>;
+      const jsonStr = Buffer.from(base64Key, "base64").toString("utf-8");
+      const credentials = JSON.parse(jsonStr);
 
-      try {
-        // First try parsing as-is (works if properly formatted)
-        credentials = JSON.parse(serviceAccountKeyStr);
-      } catch {
-        // If that fails, try fixing common escape issues in the raw string
-        const fixedKeyStr = serviceAccountKeyStr
-          .replace(/\\\\n/g, "\n")  // Double-escaped newlines
-          .replace(/\\n/g, "\n");    // Single-escaped newlines
-        credentials = JSON.parse(fixedKeyStr);
-      }
-
-      // Always fix newlines in private_key field (may still have literal \n)
-      if (typeof credentials.private_key === "string") {
-        credentials.private_key = (credentials.private_key as string).replace(/\\n/g, "\n");
-      }
-
-      // Create client with explicit credentials (bypasses auth library type issues)
       return new DocumentProcessorServiceClient({
         projectId: projectId,
         credentials: credentials,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       throw new DocAIError(
-        `Failed to parse GCP_SERVICE_ACCOUNT_KEY: ${error.message}`,
+        `Failed to parse GCP_SERVICE_ACCOUNT_KEY_BASE64: ${message}`,
+        "INVALID_CREDENTIALS",
+        false
+      );
+    }
+  }
+
+  // Priority 2: Plain JSON service account key (fallback, may have escape issues)
+  const serviceAccountKeyStr = process.env.GCP_SERVICE_ACCOUNT_KEY;
+
+  if (serviceAccountKeyStr) {
+    try {
+      // Try parsing as-is first, then fix newlines in private_key
+      const credentials = JSON.parse(serviceAccountKeyStr);
+
+      if (typeof credentials.private_key === "string") {
+        credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
+      }
+
+      return new DocumentProcessorServiceClient({
+        projectId: projectId,
+        credentials: credentials,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new DocAIError(
+        `Failed to parse GCP_SERVICE_ACCOUNT_KEY: ${message}. Consider using GCP_SERVICE_ACCOUNT_KEY_BASE64 instead.`,
         "INVALID_CREDENTIALS",
         false
       );
