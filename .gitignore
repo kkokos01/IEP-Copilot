@@ -24,7 +24,6 @@ yarn-error.log*
 # Local env files
 .env*.local
 .env
-.env.example
 
 # Vercel
 .vercel
@@ -45,3 +44,11 @@ Thumbs.db
 # Supabase
 supabase/.temp/
 supabase/config.toml
+
+# Test documents (may contain PII - never commit)
+test-docs/**/*.pdf
+test-docs/**/*.docx
+test-docs/**/*.doc
+# But allow test-docs/README.md and test-expectations.md
+!test-docs/README.md
+!test-docs/test-expectations.md

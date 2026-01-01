@@ -24,7 +24,10 @@ const anthropic = new Anthropic({
 
 // Configuration via environment
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
-const ENABLE_FUZZY_VERIFICATION = process.env.ENABLE_FUZZY_VERIFICATION === "true";
+
+// Adaptive fuzzy verification: enabled by default for better OCR handling
+// Set ENABLE_FUZZY_VERIFICATION=false to disable (for debugging only)
+const ENABLE_FUZZY_VERIFICATION = process.env.ENABLE_FUZZY_VERIFICATION !== "false";
 
 // Processing limits
 const PAGES_PER_BATCH = 15;
@@ -374,6 +377,7 @@ export const generateFindings = inngest.createFunction(
             bbox: bbox,
             verification_status: verificationResult.verified ? "verified" : "failed",
             verification_score: verificationResult.confidence,
+            verification_method: verificationResult.matchType, // Track how citation was verified
             verified_at: verificationResult.verified ? new Date().toISOString() : null,
           });
         }
@@ -481,15 +485,29 @@ function parseAndValidate(
   }
 }
 
+/**
+ * Adaptive citation verification with multi-tier matching strategy
+ *
+ * Verification tiers (in order of preference):
+ * 1. Exact match (confidence: 1.0) - Character-for-character match
+ * 2. Normalized match (confidence: 0.95) - After OCR normalization (ligatures, quotes, dashes)
+ * 3. Fuzzy match (confidence: 0.85-0.94) - Levenshtein-based for minor OCR errors
+ *
+ * Match type statistics are logged for monitoring OCR quality
+ */
 function verifyCitations(
   findings: Finding[],
   pageMap: Map<number, { text: string; textNormalized: string }>
 ): VerifiedFinding[] {
-  return findings.map((finding) => {
+  // Track match statistics for logging
+  const matchStats = { exact: 0, normalized: 0, fuzzy: 0, failed: 0, pageNotFound: 0 };
+
+  const results = findings.map((finding) => {
     const citationResults = finding.citations.map((citation) => {
       const page = pageMap.get(citation.page_number);
 
       if (!page) {
+        matchStats.pageNotFound++;
         return {
           citation,
           verified: false,
@@ -498,13 +516,23 @@ function verifyCitations(
         };
       }
 
-      // Use env-controlled fuzzy verification
+      // Adaptive verification: always try all methods, fuzzy is enabled by default
       const result = verifyQuote(page.text, citation.quote_text, {
         minLength: 12,
         allowFuzzy: ENABLE_FUZZY_VERIFICATION,
-        maxPageLengthForFuzzy: 6000,
-        maxQuoteLengthForFuzzy: 150,
+        maxPageLengthForFuzzy: 8000,  // Increased for larger pages
+        maxQuoteLengthForFuzzy: 200,   // Increased for longer quotes
+        fuzzyThreshold: 0.85,          // Slightly more permissive threshold
       });
+
+      // Track statistics
+      if (result.verified) {
+        if (result.matchType === 'exact') matchStats.exact++;
+        else if (result.matchType === 'normalized') matchStats.normalized++;
+        else if (result.matchType === 'fuzzy') matchStats.fuzzy++;
+      } else {
+        matchStats.failed++;
+      }
 
       return {
         citation,
@@ -516,6 +544,25 @@ function verifyCitations(
 
     return { finding, citationResults };
   });
+
+  // Log match statistics for monitoring
+  const total = matchStats.exact + matchStats.normalized + matchStats.fuzzy + matchStats.failed + matchStats.pageNotFound;
+  if (total > 0) {
+    console.log(`Citation verification stats: ${JSON.stringify(matchStats)} (total: ${total})`);
+
+    // Log warning if too many are failing or requiring fuzzy
+    const fuzzyRate = (matchStats.fuzzy / total) * 100;
+    const failRate = ((matchStats.failed + matchStats.pageNotFound) / total) * 100;
+
+    if (failRate > 30) {
+      console.warn(`High citation failure rate: ${failRate.toFixed(1)}% - may indicate OCR quality issues`);
+    }
+    if (fuzzyRate > 50) {
+      console.warn(`High fuzzy match rate: ${fuzzyRate.toFixed(1)}% - document may have significant OCR artifacts`);
+    }
+  }
+
+  return results;
 }
 
 /**
