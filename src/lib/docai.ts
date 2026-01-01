@@ -111,9 +111,35 @@ interface DocAIPage {
   }>;
 }
 
+// Layout Parser specific types
+interface LayoutBlock {
+  blockId?: string;
+  textBlock?: {
+    text: string;
+    type: string; // "paragraph", "heading", etc.
+  };
+  tableBlock?: {
+    headerRows?: Array<{ cells?: Array<{ blocks?: LayoutBlock[] }> }>;
+    bodyRows?: Array<{ cells?: Array<{ blocks?: LayoutBlock[] }> }>;
+  };
+  listBlock?: {
+    listEntries?: Array<{ blocks?: LayoutBlock[] }>;
+  };
+  pageSpan?: {
+    pageStart: number;
+    pageEnd: number;
+  };
+  boundingBox?: DocAIBoundingBox;
+}
+
+interface DocumentLayout {
+  blocks?: LayoutBlock[];
+}
+
 interface DocAIDocument {
   text?: string;
   pages?: DocAIPage[];
+  documentLayout?: DocumentLayout; // Layout Parser format
 }
 
 // Extracted types for our use
@@ -198,20 +224,44 @@ export async function extractWithDocAI(
       throw new DocAIError("No document in response", "EMPTY_RESPONSE", false);
     }
 
+    // Detect response format: Layout Parser vs OCR
+    const isLayoutParser = !!document.documentLayout?.blocks?.length;
+    const isOCRFormat = !!document.text && !!document.pages?.length;
+
     // Debug: Log what Document AI returned
     console.log("Document AI response:", {
+      format: isLayoutParser ? "Layout Parser" : isOCRFormat ? "OCR" : "Unknown",
       hasPages: !!document.pages,
       pagesCount: document.pages?.length || 0,
       hasText: !!document.text,
       textLength: document.text?.length || 0,
-      textPreview: document.text?.substring(0, 200) || "No text"
+      hasDocumentLayout: !!document.documentLayout,
+      layoutBlocksCount: document.documentLayout?.blocks?.length || 0,
+      textPreview: document.text?.substring(0, 200) || "No text field"
     });
 
-    // Extract pages
-    const pages = extractPages(document, pageOffset);
-    
-    // Extract blocks with bounding boxes
-    const blocks = extractBlocks(document, pageOffset);
+    let pages: ExtractedPage[];
+    let blocks: ExtractedBlock[];
+
+    if (isLayoutParser) {
+      // Layout Parser format: extract from documentLayout.blocks
+      pages = extractPagesFromLayout(document, pageOffset);
+      blocks = extractBlocksFromLayout(document, pageOffset);
+    } else if (isOCRFormat) {
+      // OCR format: extract from document.text and page.paragraphs
+      pages = extractPagesFromOCR(document, pageOffset);
+      blocks = extractBlocksFromOCR(document, pageOffset);
+    } else {
+      console.error("Unknown Document AI response format:", {
+        keys: Object.keys(document),
+        pagesKeys: document.pages?.[0] ? Object.keys(document.pages[0]) : [],
+      });
+      throw new DocAIError(
+        "Unknown Document AI response format - neither Layout Parser nor OCR format detected",
+        "UNKNOWN_FORMAT",
+        false
+      );
+    }
 
     return {
       pages,
@@ -257,10 +307,237 @@ export async function extractWithDocAI(
   }
 }
 
+// =============================================================================
+// LAYOUT PARSER FORMAT EXTRACTION
+// =============================================================================
+
 /**
- * Extract page-level text from Document AI response.
+ * Extract page-level text from Layout Parser format.
+ * Groups blocks by pageSpan and concatenates text.
  */
-function extractPages(document: DocAIDocument, pageOffset: number): ExtractedPage[] {
+function extractPagesFromLayout(document: DocAIDocument, pageOffset: number): ExtractedPage[] {
+  const layoutBlocks = document.documentLayout?.blocks || [];
+  const pageCount = document.pages?.length || 0;
+
+  if (pageCount === 0 || layoutBlocks.length === 0) {
+    console.warn("Layout Parser: No pages or blocks found");
+    return [];
+  }
+
+  // Group blocks by page
+  const pageTexts: Map<number, string[]> = new Map();
+
+  for (let i = 1; i <= pageCount; i++) {
+    pageTexts.set(i, []);
+  }
+
+  // Recursively extract text from layout blocks
+  function extractTextFromLayoutBlock(block: LayoutBlock): string {
+    let text = "";
+
+    if (block.textBlock?.text) {
+      text += block.textBlock.text;
+    }
+
+    // Handle table blocks
+    if (block.tableBlock) {
+      const processRows = (rows?: Array<{ cells?: Array<{ blocks?: LayoutBlock[] }> }>) => {
+        if (!rows) return;
+        for (const row of rows) {
+          if (!row.cells) continue;
+          for (const cell of row.cells) {
+            if (!cell.blocks) continue;
+            for (const cellBlock of cell.blocks) {
+              text += extractTextFromLayoutBlock(cellBlock) + " ";
+            }
+          }
+          text += "\n";
+        }
+      };
+      processRows(block.tableBlock.headerRows);
+      processRows(block.tableBlock.bodyRows);
+    }
+
+    // Handle list blocks
+    if (block.listBlock?.listEntries) {
+      for (const entry of block.listBlock.listEntries) {
+        if (!entry.blocks) continue;
+        for (const listBlock of entry.blocks) {
+          text += "• " + extractTextFromLayoutBlock(listBlock) + "\n";
+        }
+      }
+    }
+
+    return text;
+  }
+
+  // Process each layout block
+  for (const block of layoutBlocks) {
+    const pageNum = block.pageSpan?.pageStart || 1;
+    const text = extractTextFromLayoutBlock(block);
+
+    if (text.trim()) {
+      const pageTextArray = pageTexts.get(pageNum);
+      if (pageTextArray) {
+        pageTextArray.push(text);
+      }
+    }
+  }
+
+  // Build extracted pages
+  const pages: ExtractedPage[] = [];
+
+  for (let i = 1; i <= pageCount; i++) {
+    const pageTextArray = pageTexts.get(i) || [];
+    const pageText = pageTextArray.join("\n");
+    const { text, textNormalized, wordCount } = preparePageTextForStorage(pageText);
+
+    pages.push({
+      pageNumber: pageOffset + i,
+      text,
+      textNormalized,
+      wordCount,
+      width: document.pages?.[i - 1]?.dimension?.width,
+      height: document.pages?.[i - 1]?.dimension?.height,
+      confidence: undefined, // Layout Parser doesn't provide per-page confidence
+    });
+  }
+
+  console.log(`Layout Parser: Extracted ${pages.length} pages with ${layoutBlocks.length} blocks`);
+  return pages;
+}
+
+/**
+ * Extract blocks from Layout Parser format.
+ */
+function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): ExtractedBlock[] {
+  const layoutBlocks = document.documentLayout?.blocks || [];
+  const blocks: ExtractedBlock[] = [];
+  let globalReadingOrder = 0;
+
+  function mapBlockType(type?: string): ExtractedBlock["blockType"] {
+    switch (type?.toLowerCase()) {
+      case "heading":
+      case "title":
+        return "heading";
+      case "list_item":
+        return "list_item";
+      case "table":
+        return "table";
+      case "table_cell":
+        return "table_cell";
+      default:
+        return "paragraph";
+    }
+  }
+
+  function processLayoutBlock(block: LayoutBlock) {
+    const pageNumber = pageOffset + (block.pageSpan?.pageStart || 1);
+
+    // Text blocks
+    if (block.textBlock?.text) {
+      const { textNormalized } = preparePageTextForStorage(block.textBlock.text);
+      blocks.push({
+        pageNumber,
+        blockType: mapBlockType(block.textBlock.type),
+        text: block.textBlock.text,
+        textNormalized,
+        bbox: convertBoundingBox(block.boundingBox),
+        confidence: null,
+        readingOrder: globalReadingOrder++,
+      });
+    }
+
+    // Table blocks
+    if (block.tableBlock) {
+      const allCellTexts: string[] = [];
+
+      const processRows = (rows?: Array<{ cells?: Array<{ blocks?: LayoutBlock[] }> }>) => {
+        if (!rows) return;
+        for (const row of rows) {
+          if (!row.cells) continue;
+          for (const cell of row.cells) {
+            if (!cell.blocks) continue;
+            const cellTexts: string[] = [];
+            for (const cellBlock of cell.blocks) {
+              if (cellBlock.textBlock?.text) {
+                cellTexts.push(cellBlock.textBlock.text);
+              }
+            }
+            if (cellTexts.length > 0) {
+              const cellText = cellTexts.join(" ");
+              allCellTexts.push(cellText);
+              const { textNormalized } = preparePageTextForStorage(cellText);
+              blocks.push({
+                pageNumber,
+                blockType: "table_cell",
+                text: cellText,
+                textNormalized,
+                bbox: null, // Cell-level bbox not easily available
+                confidence: null,
+                readingOrder: globalReadingOrder++,
+              });
+            }
+          }
+        }
+      };
+
+      processRows(block.tableBlock.headerRows);
+      processRows(block.tableBlock.bodyRows);
+
+      if (allCellTexts.length > 0) {
+        const tableText = allCellTexts.join(" | ");
+        const { textNormalized } = preparePageTextForStorage(tableText);
+        blocks.push({
+          pageNumber,
+          blockType: "table",
+          text: tableText,
+          textNormalized,
+          bbox: convertBoundingBox(block.boundingBox),
+          confidence: null,
+          readingOrder: globalReadingOrder++,
+        });
+      }
+    }
+
+    // List blocks
+    if (block.listBlock?.listEntries) {
+      for (const entry of block.listBlock.listEntries) {
+        if (!entry.blocks) continue;
+        for (const listBlock of entry.blocks) {
+          if (listBlock.textBlock?.text) {
+            const { textNormalized } = preparePageTextForStorage(listBlock.textBlock.text);
+            blocks.push({
+              pageNumber,
+              blockType: "list_item",
+              text: listBlock.textBlock.text,
+              textNormalized,
+              bbox: convertBoundingBox(listBlock.boundingBox),
+              confidence: null,
+              readingOrder: globalReadingOrder++,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  for (const block of layoutBlocks) {
+    processLayoutBlock(block);
+  }
+
+  console.log(`Layout Parser: Extracted ${blocks.length} blocks`);
+  return blocks;
+}
+
+// =============================================================================
+// OCR FORMAT EXTRACTION (legacy)
+// =============================================================================
+
+/**
+ * Extract page-level text from OCR format (document.text + page.paragraphs).
+ */
+function extractPagesFromOCR(document: DocAIDocument, pageOffset: number): ExtractedPage[] {
   if (!document.pages || !document.text) return [];
 
   const fullText = document.text;
@@ -310,9 +587,9 @@ function extractPages(document: DocAIDocument, pageOffset: number): ExtractedPag
 }
 
 /**
- * Extract layout blocks with bounding boxes for highlighting.
+ * Extract layout blocks with bounding boxes for highlighting (OCR format).
  */
-function extractBlocks(document: DocAIDocument, pageOffset: number): ExtractedBlock[] {
+function extractBlocksFromOCR(document: DocAIDocument, pageOffset: number): ExtractedBlock[] {
   if (!document.pages || !document.text) return [];
 
   const fullText = document.text;
