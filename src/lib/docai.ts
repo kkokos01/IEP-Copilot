@@ -116,7 +116,14 @@ function createDocAIClient(): DocumentProcessorServiceClient {
 
 // Types for Document AI response (simplified)
 interface DocAIBoundingBox {
-  normalizedVertices: Array<{ x: number; y: number }>;
+  normalizedVertices?: Array<{ x: number; y: number }>;
+  vertices?: Array<{ x: number; y: number }>;
+}
+
+// Layout Parser may use boundingPoly instead of boundingBox
+interface DocAIBoundingPoly {
+  normalizedVertices?: Array<{ x: number; y: number }>;
+  vertices?: Array<{ x: number; y: number }>;
 }
 
 interface DocAIBlock {
@@ -145,6 +152,7 @@ interface LayoutBlock {
   textBlock?: {
     text: string;
     type: string; // "paragraph", "heading", etc.
+    blocks?: LayoutBlock[]; // Nested blocks within text block
   };
   tableBlock?: {
     headerRows?: Array<{ cells?: Array<{ blocks?: LayoutBlock[] }> }>;
@@ -157,7 +165,9 @@ interface LayoutBlock {
     pageStart: number;
     pageEnd: number;
   };
+  // Layout Parser may provide bounding info in various formats
   boundingBox?: DocAIBoundingBox;
+  boundingPoly?: DocAIBoundingPoly;
 }
 
 interface DocumentLayout {
@@ -345,10 +355,22 @@ export async function extractWithDocAI(
  */
 function extractPagesFromLayout(document: DocAIDocument, pageOffset: number): ExtractedPage[] {
   const layoutBlocks = document.documentLayout?.blocks || [];
-  const pageCount = document.pages?.length || 0;
 
-  if (pageCount === 0 || layoutBlocks.length === 0) {
-    console.warn("Layout Parser: No pages or blocks found");
+  if (layoutBlocks.length === 0) {
+    console.warn("Layout Parser: No blocks found");
+    return [];
+  }
+
+  // Derive page count from blocks' pageSpan (document.pages may be empty in Layout Parser)
+  let maxPage = 0;
+  for (const block of layoutBlocks) {
+    const pageEnd = block.pageSpan?.pageEnd || block.pageSpan?.pageStart || 1;
+    if (pageEnd > maxPage) maxPage = pageEnd;
+  }
+  const pageCount = maxPage || document.pages?.length || 0;
+
+  if (pageCount === 0) {
+    console.warn("Layout Parser: Could not determine page count");
     return [];
   }
 
@@ -470,7 +492,7 @@ function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): E
         blockType: mapBlockType(block.textBlock.type),
         text: block.textBlock.text,
         textNormalized,
-        bbox: convertBoundingBox(block.boundingBox),
+        bbox: convertBoundingBox(block.boundingBox, block.boundingPoly),
         confidence: null,
         readingOrder: globalReadingOrder++,
       });
@@ -521,7 +543,7 @@ function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): E
           blockType: "table",
           text: tableText,
           textNormalized,
-          bbox: convertBoundingBox(block.boundingBox),
+          bbox: convertBoundingBox(block.boundingBox, block.boundingPoly),
           confidence: null,
           readingOrder: globalReadingOrder++,
         });
@@ -540,7 +562,7 @@ function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): E
               blockType: "list_item",
               text: listBlock.textBlock.text,
               textNormalized,
-              bbox: convertBoundingBox(listBlock.boundingBox),
+              bbox: convertBoundingBox(listBlock.boundingBox, listBlock.boundingPoly),
               confidence: null,
               readingOrder: globalReadingOrder++,
             });
@@ -554,7 +576,22 @@ function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): E
     processLayoutBlock(block);
   }
 
-  console.log(`Layout Parser: Extracted ${blocks.length} blocks`);
+  // Debug: Log bbox statistics and sample block structure
+  const blocksWithBbox = blocks.filter(b => b.bbox !== null).length;
+  console.log(`Layout Parser: Extracted ${blocks.length} blocks (${blocksWithBbox} with bounding boxes)`);
+
+  if (blocksWithBbox === 0 && layoutBlocks.length > 0) {
+    // Log first block's structure to understand the format
+    const sampleBlock = layoutBlocks[0];
+    console.log("Layout Parser: Sample block structure (bbox debugging):", {
+      hasBlockBoundingBox: !!sampleBlock.boundingBox,
+      hasBlockBoundingPoly: !!sampleBlock.boundingPoly,
+      blockKeys: Object.keys(sampleBlock),
+      boundingBoxKeys: sampleBlock.boundingBox ? Object.keys(sampleBlock.boundingBox) : null,
+      boundingPolyKeys: sampleBlock.boundingPoly ? Object.keys(sampleBlock.boundingPoly) : null,
+    });
+  }
+
   return blocks;
 }
 
@@ -723,16 +760,33 @@ function getTextFromAnchor(
 
 /**
  * Convert Document AI bounding box to normalized format.
+ * Handles both boundingBox and boundingPoly formats from Layout Parser.
  */
 function convertBoundingBox(
-  bbox?: DocAIBoundingBox
+  bbox?: DocAIBoundingBox,
+  boundingPoly?: DocAIBoundingPoly
 ): { x0: number; y0: number; x1: number; y1: number } | null {
-  if (!bbox?.normalizedVertices || bbox.normalizedVertices.length < 4) {
+  // Try normalizedVertices from boundingBox first
+  let vertices = bbox?.normalizedVertices;
+
+  // Fall back to vertices from boundingBox
+  if (!vertices || vertices.length < 4) {
+    vertices = bbox?.vertices;
+  }
+
+  // Try boundingPoly if boundingBox didn't work
+  if (!vertices || vertices.length < 4) {
+    vertices = boundingPoly?.normalizedVertices;
+  }
+
+  if (!vertices || vertices.length < 4) {
+    vertices = boundingPoly?.vertices;
+  }
+
+  if (!vertices || vertices.length < 4) {
     return null;
   }
 
-  const vertices = bbox.normalizedVertices;
-  
   // Find min/max to handle any vertex ordering
   const xs = vertices.map((v) => v.x ?? 0);
   const ys = vertices.map((v) => v.y ?? 0);
