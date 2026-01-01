@@ -509,6 +509,12 @@ npm run smoke-test
 - Check if document was processed successfully
 - Verify Anthropic API key is valid
 
+**"0 pages extracted" from valid PDF**
+- Check Document AI processor type (Layout Parser vs OCR)
+- Layout Parser returns `documentLayout.blocks[]` format
+- OCR returns `document.text` + `pages[].paragraphs[]` format
+- Code handles both formats as of v3.2
+
 ### Common Errors
 
 **Build fails with "supabaseUrl is required"**
@@ -558,7 +564,12 @@ npm run smoke-test
 
 ## Version History
 
-### v3.1 (Current)
+### v3.2 (Current)
+- Layout Parser response format support (Document AI returns `documentLayout.blocks[]` instead of OCR format)
+- Fixed GCP credential parsing for escaped newlines in Vercel environment variables
+- Added debug scripts for Document AI testing
+
+### v3.1
 - Upload API route added
 - GitHub Actions for automated migrations
 - `is_partial_extraction` column for easier UI queries

@@ -385,6 +385,71 @@
 
 ---
 
+## 2026-01-01: Layout Parser Response Format Handling
+
+**Status**: Implemented
+**Decision**: Support both OCR and Layout Parser response formats from Document AI
+**Context**: Document AI returned 0 pages because code expected OCR format but Layout Parser was configured
+
+### Alternatives Considered
+- **Use OCR processor only**:
+  - Would work but loses layout parsing benefits
+  - Less accurate for complex documents
+- **Change processor type in GCP**:
+  - Disruptive to existing setup
+  - Layout Parser is better for IEP documents
+- **Detect and handle both formats**:
+  - More robust
+  - Supports future processor changes
+
+### Rationale
+- Layout Parser returns `documentLayout.blocks[]` with `textBlock`, `tableBlock`, etc.
+- OCR returns `document.text` + `pages[].paragraphs[]` format
+- Code was checking `if (!document.pages || !document.text)` which failed for Layout Parser
+- Dual-format support enables processor flexibility
+- No breaking changes needed on GCP side
+
+### Consequences
+- ✅ Works with both Layout Parser and OCR processors
+- ✅ No reconfiguration needed in GCP
+- ✅ Better debugging with format detection logging
+- ✅ Handles future processor changes gracefully
+- ❌ More complex extraction code
+- ❌ Need to maintain two code paths
+
+---
+
+## 2026-01-01: Fix Escaped Newlines in GCP Credentials
+
+**Status**: Implemented
+**Decision**: Preprocess GCP service account JSON to fix escaped newlines before parsing
+**Context**: Vercel environment variables store `\n` as literal characters, breaking JSON.parse()
+
+### Alternatives Considered
+- **Base64 encode credentials**:
+  - Would work but requires encoding step
+  - Less readable for debugging
+- **Store credentials in secret manager**:
+  - More secure but adds complexity
+  - Additional service dependency
+- **Preprocess before JSON.parse**:
+  - Simple fix at parse time
+  - No changes needed to how credentials are stored
+
+### Rationale
+- Private key contains newlines (`-----BEGIN PRIVATE KEY-----\n...`)
+- Vercel stores these as literal `\n` instead of actual newlines
+- `JSON.parse()` fails with "Bad control character" error
+- Simple `.replace(/\\n/g, "\n")` fixes the issue
+
+### Consequences
+- ✅ Works with standard Vercel environment variable setup
+- ✅ No changes needed to deployment process
+- ✅ Backward compatible (works if newlines are already correct)
+- ❌ Must remember this quirk for future credential handling
+
+---
+
 ## Pending Decisions
 
 ### PDF Rendering Strategy

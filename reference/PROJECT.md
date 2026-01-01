@@ -30,7 +30,7 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 
 ### Key Features Implemented
 - ✅ Secure document upload with direct Supabase Storage integration
-- ✅ Google Document AI extraction with layout parsing
+- ✅ Google Document AI extraction with layout parsing (supports both OCR and Layout Parser formats)
 - ✅ AI-powered findings generation with verified citations
 - ✅ Row Level Security for multi-tenant data isolation
 - ✅ Event-driven background processing with retries

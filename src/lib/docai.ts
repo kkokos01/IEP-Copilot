@@ -33,10 +33,28 @@ function createDocAIClient(): DocumentProcessorServiceClient {
 
   if (serviceAccountKeyStr) {
     try {
-      // CRITICAL: Vercel env vars store private keys with literal "\n"
-      // instead of actual newlines. Fix by replacing before JSON parse.
-      const fixedKeyStr = serviceAccountKeyStr.replace(/\\n/g, "\n");
-      const credentials = JSON.parse(fixedKeyStr);
+      // CRITICAL: Vercel env vars can mangle JSON in various ways:
+      // 1. Literal \n instead of newlines in private_key
+      // 2. Double-escaped \\n
+      // 3. Other escaped characters
+      // Parse the JSON first, then fix the private_key field specifically
+      let credentials: Record<string, unknown>;
+
+      try {
+        // First try parsing as-is (works if properly formatted)
+        credentials = JSON.parse(serviceAccountKeyStr);
+      } catch {
+        // If that fails, try fixing common escape issues in the raw string
+        const fixedKeyStr = serviceAccountKeyStr
+          .replace(/\\\\n/g, "\n")  // Double-escaped newlines
+          .replace(/\\n/g, "\n");    // Single-escaped newlines
+        credentials = JSON.parse(fixedKeyStr);
+      }
+
+      // Always fix newlines in private_key field (may still have literal \n)
+      if (typeof credentials.private_key === "string") {
+        credentials.private_key = (credentials.private_key as string).replace(/\\n/g, "\n");
+      }
 
       // Create client with explicit credentials (bypasses auth library type issues)
       return new DocumentProcessorServiceClient({
