@@ -29,6 +29,8 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   // Evidence panel state
   const [showEvidencePanel, setShowEvidencePanel] = useState(false)
   const [currentCitationIndex, setCurrentCitationIndex] = useState(0)
+  // Filter state
+  const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false)
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<'findings' | 'document'>('findings')
   const router = useRouter()
@@ -197,6 +199,15 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
           md:block w-full md:w-[35%] lg:w-[35%] border-r bg-white overflow-y-auto
         `}>
           <div className="p-4">
+            {/* Partial Extraction Warning */}
+            {document?.is_partial_extraction && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <span className="font-medium">⚠ Partial extraction:</span> Some pages could not be read. Findings may be incomplete.
+                </p>
+              </div>
+            )}
+
             {/* Document Info Summary */}
             <div className="mb-4 pb-4 border-b">
               <p className="text-sm text-gray-600">
@@ -207,16 +218,33 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
               </p>
             </div>
 
-            {/* Findings Header */}
-            <h2 className="text-lg font-medium mb-4">
-              Findings ({findings.length})
-            </h2>
+            {/* Findings Header with Filter */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium">
+                Findings ({showOnlyNeedsReview
+                  ? findings.filter(f => f.status === 'needs_review').length
+                  : findings.length})
+              </h2>
+              {findings.some(f => f.status === 'needs_review') && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showOnlyNeedsReview}
+                    onChange={(e) => setShowOnlyNeedsReview(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-gray-600">Needs review only</span>
+                </label>
+              )}
+            </div>
 
             {findings.length === 0 ? (
               <p className="text-gray-500 text-sm">No findings identified in this document.</p>
             ) : (
               <div className="space-y-3">
-                {findings.map((finding) => (
+                {findings
+                  .filter(f => !showOnlyNeedsReview || f.status === 'needs_review')
+                  .map((finding) => (
                   <div
                     key={finding.id}
                     className={`border rounded-lg p-3 cursor-pointer transition-colors ${
@@ -230,9 +258,16 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                   >
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-medium text-sm leading-tight">{finding.title}</h3>
-                      <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full flex-shrink-0 ${getCategoryColor(finding.category)}`}>
-                        {finding.category}
-                      </span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {finding.status === 'needs_review' && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                            ⚠ Review
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(finding.category)}`}>
+                          {finding.category}
+                        </span>
+                      </div>
                     </div>
 
                     <p className="text-gray-600 text-sm mb-2 line-clamp-2">{finding.summary}</p>
