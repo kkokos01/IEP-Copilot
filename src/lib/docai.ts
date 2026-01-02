@@ -263,16 +263,18 @@ export async function extractWithDocAI(
     }
 
     // Detect response format: Layout Parser vs OCR
-    const isLayoutParser = !!document.documentLayout?.blocks?.length;
-    const isOCRFormat = !!document.text && !!document.pages?.length;
+    const hasLayoutBlocks = !!document.documentLayout?.blocks?.length;
+    const hasOCRContent = !!document.text && !!document.pages?.length;
+    const textLength = document.text?.length || 0;
 
     // Debug: Log what Document AI returned
     console.log("Document AI response:", {
-      format: isLayoutParser ? "Layout Parser" : isOCRFormat ? "OCR" : "Unknown",
+      hasLayoutBlocks,
+      hasOCRContent,
       hasPages: !!document.pages,
       pagesCount: document.pages?.length || 0,
       hasText: !!document.text,
-      textLength: document.text?.length || 0,
+      textLength,
       hasDocumentLayout: !!document.documentLayout,
       layoutBlocksCount: document.documentLayout?.blocks?.length || 0,
       textPreview: document.text?.substring(0, 200) || "No text field"
@@ -281,12 +283,22 @@ export async function extractWithDocAI(
     let pages: ExtractedPage[];
     let blocks: ExtractedBlock[];
 
-    if (isLayoutParser) {
-      // Layout Parser format: extract from documentLayout.blocks
+    // IMPORTANT: Prefer OCR format if document.text has substantial content
+    // Layout Parser often puts full text in document.text while textBlock.text
+    // only contains headings/structure. Use OCR extraction for reliable text.
+    if (hasOCRContent && textLength > 500) {
+      // Use OCR extraction - document.text has real content
+      console.log("Using OCR extraction (document.text has content)");
+      pages = extractPagesFromOCR(document, pageOffset);
+      blocks = extractBlocksFromOCR(document, pageOffset);
+    } else if (hasLayoutBlocks) {
+      // Fall back to Layout Parser extraction
+      console.log("Using Layout Parser extraction (no document.text content)");
       pages = extractPagesFromLayout(document, pageOffset);
       blocks = extractBlocksFromLayout(document, pageOffset);
-    } else if (isOCRFormat) {
-      // OCR format: extract from document.text and page.paragraphs
+    } else if (hasOCRContent) {
+      // OCR format with minimal text
+      console.log("Using OCR extraction (minimal content)");
       pages = extractPagesFromOCR(document, pageOffset);
       blocks = extractBlocksFromOCR(document, pageOffset);
     } else {
