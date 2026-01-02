@@ -330,8 +330,8 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
 
         {/* Right Pane: PDF Viewer */}
         <div className={`
-          ${activeTab === 'document' ? 'block' : 'hidden'}
-          md:block w-full md:w-[65%] lg:w-[65%] flex flex-col bg-gray-100
+          ${activeTab === 'document' ? 'flex' : 'hidden'}
+          md:flex w-full md:w-[65%] lg:w-[65%] flex-col bg-gray-100
         `}>
           <div className="flex-1 overflow-hidden">
             {pdfUrl ? (
@@ -358,11 +358,12 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
           </div>
 
           {/* Evidence Panel - Debug info */}
-          <div className="bg-yellow-200 text-xs p-1 text-center">
+          <div className="bg-yellow-200 text-xs p-1 text-center flex-shrink-0">
             Debug: showEvidencePanel={String(showEvidencePanel)}, selectedFinding={selectedFinding?.id || 'null'}, citations={selectedFinding ? getCitationsForFinding(selectedFinding.id).length : 0}
           </div>
 
           {showEvidencePanel && selectedFinding && getCitationsForFinding(selectedFinding.id).length > 0 && (
+            <div className="flex-shrink-0">
             <EvidencePanel
               citations={getCitationsForFinding(selectedFinding.id)}
               currentIndex={currentCitationIndex}
@@ -387,6 +388,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                 setHighlightBbox(null)
               }}
             />
+            </div>
           )}
         </div>
       </div>
