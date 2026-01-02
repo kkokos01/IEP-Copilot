@@ -357,11 +357,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
             )}
           </div>
 
-          {/* Evidence Panel - Debug info */}
-          <div className="bg-yellow-200 text-xs p-1 text-center flex-shrink-0">
-            Debug: showEvidencePanel={String(showEvidencePanel)}, selectedFinding={selectedFinding?.id || 'null'}, citations={selectedFinding ? getCitationsForFinding(selectedFinding.id).length : 0}
-          </div>
-
+          {/* Evidence Panel */}
           {showEvidencePanel && selectedFinding && getCitationsForFinding(selectedFinding.id).length > 0 && (
             <div className="flex-shrink-0">
             <EvidencePanel
