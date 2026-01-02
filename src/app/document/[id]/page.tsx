@@ -325,10 +325,13 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                                 setShowEvidencePanel(true)
 
                                 // Set highlight bbox if available
-                                if (citation.bbox) {
+                                console.log('Citation bbox:', citation.bbox, 'type:', typeof citation.bbox)
+                                if (citation.bbox && typeof citation.bbox === 'object') {
                                   const bbox = citation.bbox as {x0: number; y0: number; x1: number; y1: number}
+                                  console.log('Setting highlight bbox:', bbox)
                                   setHighlightBbox(bbox)
                                 } else {
+                                  console.log('No bbox available for citation')
                                   setHighlightBbox(null)
                                 }
                                 setActiveTab('document') // Switch to document on mobile
