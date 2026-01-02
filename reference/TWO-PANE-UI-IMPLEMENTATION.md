@@ -5,6 +5,7 @@
 **Last Updated:** 2026-01-01
 **Stable Commit:** `0195af2` (Functional MVP)
 **Author:** Claude (continuing from planning session)
+**Reviewed By:** External assistant (feedback incorporated)
 
 ---
 
@@ -102,7 +103,7 @@ title               text
 summary             text
 why_it_matters      text
 questions_to_ask    text[]  -- Array of strings
-confidence          float   -- 0.0 to 1.0
+confidence          float   -- 0.0 to 1.0 (YES, this IS populated - show in UI as subtle indicator)
 needs_review_reason text
 created_at          timestamptz
 ```
@@ -260,202 +261,379 @@ Current layout (single column):
 
 ## Part 5: Implementation Phases
 
-### Phase 0: Component Foundation (Prerequisite)
+### ⚠️ CRITICAL: Phase Order Rationale
 
-**Create `/src/components` structure:**
+**PDF rendering is the highest-risk item.** If react-pdf has issues with Next.js 15 App Router, signed URLs, or CORS, you need to know immediately - not after building all the components. The phases below are ordered by risk.
 
-```
-/src/components/
-├── ui/
-│   ├── Button.tsx
-│   ├── Badge.tsx
-│   ├── Card.tsx
-│   ├── Accordion.tsx
-│   └── Toggle.tsx
-├── layout/
-│   ├── PageHeader.tsx
-│   └── TwoPaneLayout.tsx
-└── document/
-    ├── FindingsPanel.tsx
-    ├── FindingCard.tsx
-    ├── FindingsByCategory.tsx
-    ├── PdfViewer.tsx
-    ├── HighlightOverlay.tsx
-    ├── EvidencePanel.tsx
-    └── CitationCard.tsx
-```
+---
 
-**Recommendation:** Install shadcn/ui for primitives:
-```bash
-npx shadcn-ui@latest init
-npx shadcn-ui@latest add button badge card accordion
-```
+### Phase 1: PDF Rendering Proof-of-Concept (HIGHEST RISK - DO FIRST)
 
-### Phase 1: Two-Pane Layout Shell
-
-**Goal:** Get the split layout working with placeholder content.
-
-```tsx
-// /src/app/document/[id]/page.tsx
-export default function DocumentPage({ params }: { params: { id: string } }) {
-  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <PageHeader
-        title={document.source_filename}
-        backLink={`/case/${document.case_id}`}
-      />
-
-      {/* Two-pane content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: Findings */}
-        <div className="w-[35%] border-r overflow-y-auto p-4">
-          <FindingsPanel
-            findings={findings}
-            selectedFinding={selectedFinding}
-            onSelectFinding={setSelectedFinding}
-          />
-        </div>
-
-        {/* Right: Document + Evidence */}
-        <div className="w-[65%] flex flex-col">
-          <div className="flex-1 bg-gray-100 p-4">
-            {/* PDF placeholder initially */}
-            <div className="bg-white h-full rounded-lg shadow flex items-center justify-center">
-              PDF Viewer - Page {currentPage}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-```
-
-### Phase 2: PDF Viewer Integration
+**Goal:** Prove PDF rendering works before building anything else.
 
 **Install react-pdf:**
 ```bash
 npm install react-pdf
 ```
 
-**Create PdfViewer component:**
+**Create minimal PdfViewer component:**
 ```tsx
 // /src/components/document/PdfViewer.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
-// Required for react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// IMPORTANT: This worker config is required for Next.js 15 App Router
+// The unpkg approach may fail - use import.meta.url instead
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 interface PdfViewerProps {
   url: string;
   pageNumber: number;
   onPageChange: (page: number) => void;
   totalPages: number;
+  highlightBbox?: { x0: number; y0: number; x1: number; y1: number } | null;
 }
 
-export function PdfViewer({ url, pageNumber, onPageChange, totalPages }: PdfViewerProps) {
+export function PdfViewer({
+  url,
+  pageNumber,
+  onPageChange,
+  totalPages,
+  highlightBbox
+}: PdfViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(600);
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Measure container width for responsive PDF sizing
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth - 32); // Account for padding
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   return (
-    <div className="relative bg-gray-200 rounded-lg overflow-hidden">
+    <div ref={containerRef} className="relative h-full overflow-auto bg-gray-200 rounded-lg">
+      {/* Loading state */}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="animate-pulse text-gray-500">Loading PDF...</div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+          <div className="text-red-600 text-center p-4">
+            <p className="font-medium">Failed to load PDF</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+        </div>
+      )}
+
       <Document
         file={url}
-        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-        className="flex justify-center"
+        onLoadSuccess={({ numPages }) => {
+          setNumPages(numPages);
+          setLoading(false);
+        }}
+        onLoadError={(err) => {
+          setError(err.message);
+          setLoading(false);
+        }}
+        className="flex justify-center py-4"
       >
-        <Page
-          pageNumber={pageNumber}
-          renderTextLayer={false}
-          renderAnnotationLayer={false}
-          className="shadow-lg"
-        />
+        {/* CRITICAL: Wrapper div for highlight positioning */}
+        {/* The highlight overlay must be inside this relative container */}
+        <div className="relative inline-block">
+          <Page
+            pageNumber={pageNumber}
+            width={containerWidth}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+            className="shadow-lg"
+          />
+
+          {/* Highlight overlay - positioned relative to the Page */}
+          {highlightBbox && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${highlightBbox.x0 * 100}%`,
+                top: `${highlightBbox.y0 * 100}%`,
+                width: `${(highlightBbox.x1 - highlightBbox.x0) * 100}%`,
+                height: `${(highlightBbox.y1 - highlightBbox.y0) * 100}%`,
+                backgroundColor: 'rgba(255, 213, 0, 0.3)',
+                border: '2px solid #f59e0b',
+                pointerEvents: 'none',
+                transition: 'all 0.2s ease-in-out',
+              }}
+              className="animate-pulse"
+            />
+          )}
+        </div>
       </Document>
 
       {/* Page navigation */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-full shadow px-4 py-2 flex items-center gap-4">
-        <button
-          onClick={() => onPageChange(Math.max(1, pageNumber - 1))}
-          disabled={pageNumber <= 1}
-          className="disabled:opacity-50"
-        >
-          ◀
-        </button>
-        <span className="text-sm">
-          Page {pageNumber} of {totalPages || numPages || '?'}
-        </span>
-        <button
-          onClick={() => onPageChange(Math.min(totalPages, pageNumber + 1))}
-          disabled={pageNumber >= totalPages}
-          className="disabled:opacity-50"
-        >
-          ▶
-        </button>
+      {!loading && !error && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-4">
+          <button
+            onClick={() => onPageChange(Math.max(1, pageNumber - 1))}
+            disabled={pageNumber <= 1}
+            className="disabled:opacity-50 hover:bg-gray-100 p-1 rounded"
+          >
+            ◀
+          </button>
+          <span className="text-sm font-medium">
+            Page {pageNumber} of {totalPages || numPages || '?'}
+          </span>
+          <button
+            onClick={() => onPageChange(Math.min(totalPages || numPages || 1, pageNumber + 1))}
+            disabled={pageNumber >= (totalPages || numPages || 1)}
+            className="disabled:opacity-50 hover:bg-gray-100 p-1 rounded"
+          >
+            ▶
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+**Test in isolation before proceeding:**
+```tsx
+// Temporary test in document/[id]/page.tsx
+const { data: signedUrl } = await supabase.storage
+  .from('documents')
+  .createSignedUrl(document.storage_path, 3600);
+
+return (
+  <div className="h-screen">
+    <PdfViewer
+      url={signedUrl.signedUrl}
+      pageNumber={1}
+      onPageChange={() => {}}
+      totalPages={document.page_count}
+    />
+  </div>
+);
+```
+
+**If this fails:** Debug CORS, signed URLs, or worker configuration before continuing.
+
+---
+
+### Phase 2: Two-Pane Layout Shell
+
+**Goal:** Get the split layout working with the proven PDF viewer.
+
+```tsx
+// /src/app/document/[id]/page.tsx
+export default function DocumentPage({ params }: { params: { id: string } }) {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  return (
+    <div className="h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b px-4 py-3 flex items-center justify-between">
+        <Link href={`/case/${document.case_id}`} className="text-blue-600 hover:underline">
+          ← Back to Case
+        </Link>
+        <h1 className="font-medium">{document.source_filename}</h1>
+        <button className="text-gray-600">Print</button>
+      </header>
+
+      {/* Two-pane content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Findings - 35% on desktop, full on mobile */}
+        <div className="w-full md:w-[35%] border-r overflow-y-auto p-4">
+          <p className="text-gray-500">Findings panel coming next...</p>
+        </div>
+
+        {/* Right: Document - hidden on mobile, 65% on desktop */}
+        <div className="hidden md:flex md:w-[65%] flex-col">
+          <PdfViewer
+            url={pdfUrl}
+            pageNumber={currentPage}
+            onPageChange={setCurrentPage}
+            totalPages={document.page_count}
+          />
+        </div>
       </div>
     </div>
   );
 }
 ```
 
-**Get signed URL for PDF:**
-```typescript
-// In your page or API
-const { data: signedUrl } = await supabase.storage
-  .from('documents')
-  .createSignedUrl(document.storage_path, 3600); // 1 hour expiry
-```
+---
 
-### Phase 3: Citation Highlighting
+### Phase 3: Basic FindingsPanel (Data Display)
 
-**Create HighlightOverlay component:**
+**Goal:** Show findings grouped by category, no styling polish yet.
+
 ```tsx
-// /src/components/document/HighlightOverlay.tsx
-interface HighlightOverlayProps {
-  bbox: { x0: number; y0: number; x1: number; y1: number };
-  color?: string;
+// /src/components/document/FindingsPanel.tsx
+interface FindingsPanelProps {
+  findings: Finding[];
+  citations: Citation[];
+  onShowEvidence: (findingId: string) => void;
+  selectedFindingId: string | null;
 }
 
-export function HighlightOverlay({ bbox, color = 'rgba(255, 213, 0, 0.3)' }: HighlightOverlayProps) {
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    left: `${bbox.x0 * 100}%`,
-    top: `${bbox.y0 * 100}%`,
-    width: `${(bbox.x1 - bbox.x0) * 100}%`,
-    height: `${(bbox.y1 - bbox.y0) * 100}%`,
-    backgroundColor: color,
-    border: '2px solid #f59e0b',
-    pointerEvents: 'none',
-    transition: 'all 0.2s ease-in-out',
+export function FindingsPanel({
+  findings,
+  citations,
+  onShowEvidence,
+  selectedFindingId
+}: FindingsPanelProps) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(['services', 'goals']) // Default expanded
+  );
+  const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
+
+  // Group findings by category
+  const groupedFindings = findings.reduce((acc, finding) => {
+    if (showOnlyNeedsReview && finding.status !== 'needs_review') return acc;
+    const category = finding.category || 'other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(finding);
+    return acc;
+  }, {} as Record<string, Finding[]>);
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
   };
 
-  return <div style={style} className="animate-pulse" />;
+  return (
+    <div className="space-y-4">
+      {/* Filter toggle */}
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={showOnlyNeedsReview}
+          onChange={(e) => setShowOnlyNeedsReview(e.target.checked)}
+          className="rounded"
+        />
+        Show only needs review
+      </label>
+
+      {/* Category accordions */}
+      {Object.entries(groupedFindings).map(([category, categoryFindings]) => (
+        <div key={category} className="border rounded-lg">
+          <button
+            onClick={() => toggleCategory(category)}
+            className="w-full px-4 py-3 flex items-center justify-between text-left font-medium"
+          >
+            <span className="capitalize">{category} ({categoryFindings.length})</span>
+            <span>{expandedCategories.has(category) ? '▼' : '▶'}</span>
+          </button>
+
+          {expandedCategories.has(category) && (
+            <div className="px-4 pb-4 space-y-3">
+              {categoryFindings.map(finding => (
+                <FindingCard
+                  key={finding.id}
+                  finding={finding}
+                  citations={citations.filter(c => c.finding_id === finding.id)}
+                  isSelected={finding.id === selectedFindingId}
+                  onShowEvidence={() => onShowEvidence(finding.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 ```
 
-**Integrate with PdfViewer:**
-```tsx
-<div className="relative">
-  <Document file={url}>
-    <Page pageNumber={pageNumber} />
-  </Document>
+---
 
-  {highlightedCitation?.bbox && highlightedCitation.page_number === pageNumber && (
-    <HighlightOverlay bbox={highlightedCitation.bbox} />
-  )}
-</div>
+### Phase 4: Wire Up "Show Evidence" → Page Jump + Highlight
+
+**Goal:** Connect finding selection to PDF navigation and highlighting.
+
+```tsx
+// In document/[id]/page.tsx - state management
+const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+const [currentPage, setCurrentPage] = useState(1);
+const [currentCitationIndex, setCurrentCitationIndex] = useState(0);
+const [showEvidencePanel, setShowEvidencePanel] = useState(false);
+
+// Derived state
+const selectedCitations = citations.filter(c => c.finding_id === selectedFindingId);
+const currentCitation = selectedCitations[currentCitationIndex];
+
+// Action: show evidence for a finding
+const handleShowEvidence = (findingId: string) => {
+  setSelectedFindingId(findingId);
+  setCurrentCitationIndex(0);
+  setShowEvidencePanel(true);
+
+  // Jump to first citation's page
+  const firstCitation = citations.find(c => c.finding_id === findingId);
+  if (firstCitation) {
+    setCurrentPage(firstCitation.page_number);
+  }
+};
+
+// Action: navigate between citations
+const handleCitationNavigate = (index: number) => {
+  setCurrentCitationIndex(index);
+  const citation = selectedCitations[index];
+  if (citation) {
+    setCurrentPage(citation.page_number);
+  }
+};
+
+// Pass highlight to PDF viewer
+<PdfViewer
+  url={pdfUrl}
+  pageNumber={currentPage}
+  onPageChange={(page) => {
+    setCurrentPage(page);
+    // Clear highlight when manually changing pages
+    if (!selectedCitations.some(c => c.page_number === page)) {
+      setShowEvidencePanel(false);
+    }
+  }}
+  totalPages={document.page_count}
+  highlightBbox={showEvidencePanel && currentCitation?.page_number === currentPage
+    ? currentCitation.bbox
+    : null}
+/>
 ```
 
-### Phase 4: Evidence Panel
+---
 
-**Create EvidencePanel component:**
+### Phase 5: Evidence Panel
+
+**Goal:** Add the slide-up panel showing citation details.
+
 ```tsx
 // /src/components/document/EvidencePanel.tsx
 interface EvidencePanelProps {
@@ -467,7 +645,6 @@ interface EvidencePanelProps {
 
 export function EvidencePanel({ citations, currentIndex, onNavigate, onClose }: EvidencePanelProps) {
   const citation = citations[currentIndex];
-
   if (!citation) return null;
 
   return (
@@ -476,7 +653,11 @@ export function EvidencePanel({ citations, currentIndex, onNavigate, onClose }: 
         <span className="text-sm text-gray-500">
           Evidence {currentIndex + 1} of {citations.length}
         </span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600"
+          aria-label="Close evidence panel"
+        >
           ✕
         </button>
       </div>
@@ -516,55 +697,65 @@ export function EvidencePanel({ citations, currentIndex, onNavigate, onClose }: 
     </div>
   );
 }
-```
 
-### Phase 5: Trust Features
-
-1. **"Show only needs review" toggle:**
-```tsx
-const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
-
-const filteredFindings = showOnlyNeedsReview
-  ? findings.filter(f => f.status === 'needs_review')
-  : findings;
-```
-
-2. **Verification badges:**
-```tsx
 function VerificationBadge({ status, method }: { status: string; method: string }) {
-  const colors = {
+  const colors: Record<string, string> = {
     verified: 'bg-green-100 text-green-800',
     failed: 'bg-red-100 text-red-800',
     pending: 'bg-yellow-100 text-yellow-800',
+    skipped: 'bg-gray-100 text-gray-800',
   };
 
   return (
-    <span className={`px-2 py-1 text-xs rounded-full ${colors[status]}`}>
+    <span className={`px-2 py-1 text-xs rounded-full ${colors[status] || colors.pending}`}>
       {status === 'verified' ? `✓ Verified (${method})` : status}
     </span>
   );
 }
 ```
 
-3. **Print stylesheet** (add to globals.css):
-```css
-@media print {
-  /* Hide navigation and controls */
-  .no-print { display: none !important; }
+---
 
-  /* Show findings in single column */
-  .print-findings {
-    width: 100% !important;
-    page-break-inside: avoid;
-  }
+### Phase 6: Polish & Trust Features
 
-  /* Include citations inline */
-  .print-citation {
-    border-left: 3px solid #3b82f6;
-    padding-left: 1rem;
-    margin: 0.5rem 0;
-  }
-}
+**Goal:** Refine styling, add trust features.
+
+1. **FindingCard styling** - Category colors, confidence indicator
+2. **"Show only needs review" toggle** - Already in FindingsPanel
+3. **Partial extraction warning** - Show if `document.is_partial_extraction`
+4. **Print stylesheet** - See Part 12
+
+---
+
+### Phase 7: Accessibility & Keyboard Navigation
+
+**Goal:** Make the UI accessible.
+
+1. **Escape** closes evidence panel
+2. **Arrow Left/Right** navigates citations when panel is open
+3. **Arrow Up/Down** navigates findings
+4. **Enter** on finding expands and shows evidence
+
+```tsx
+// Add to document/[id]/page.tsx
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && showEvidencePanel) {
+      setShowEvidencePanel(false);
+    }
+    if (showEvidencePanel && selectedCitations.length > 1) {
+      if (e.key === 'ArrowLeft') {
+        handleCitationNavigate(Math.max(0, currentCitationIndex - 1));
+      }
+      if (e.key === 'ArrowRight') {
+        handleCitationNavigate(Math.min(selectedCitations.length - 1, currentCitationIndex + 1));
+      }
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [showEvidencePanel, currentCitationIndex, selectedCitations.length]);
 ```
 
 ---
@@ -576,10 +767,9 @@ function VerificationBadge({ status, method }: { status: string; method: string 
 ```tsx
 // In document/[id]/page.tsx
 
-// Data (fetched)
-const [document, setDocument] = useState<Document | null>(null);
-const [findings, setFindings] = useState<Finding[]>([]);
-const [citations, setCitations] = useState<Citation[]>([]);
+// Data (fetched on server)
+// Using nested query for efficiency
+const { document, findings } = await getDocumentData(documentId);
 
 // UI state
 const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
@@ -587,140 +777,228 @@ const [currentPage, setCurrentPage] = useState(1);
 const [currentCitationIndex, setCurrentCitationIndex] = useState(0);
 const [showEvidencePanel, setShowEvidencePanel] = useState(false);
 const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
+const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+  new Set(['services', 'goals']) // Default expanded
+);
 
-// Derived
+// Derived state
 const selectedFinding = findings.find(f => f.id === selectedFindingId);
-const selectedCitations = citations.filter(c => c.finding_id === selectedFindingId);
+const selectedCitations = selectedFinding?.citations || [];
 const currentCitation = selectedCitations[currentCitationIndex];
-
-// Actions
-const handleShowEvidence = (findingId: string) => {
-  setSelectedFindingId(findingId);
-  setCurrentCitationIndex(0);
-  setShowEvidencePanel(true);
-
-  // Jump to first citation's page
-  const firstCitation = citations.find(c => c.finding_id === findingId);
-  if (firstCitation) {
-    setCurrentPage(firstCitation.page_number);
-  }
-};
-
-const handleCitationNavigate = (index: number) => {
-  setCurrentCitationIndex(index);
-  const citation = selectedCitations[index];
-  if (citation) {
-    setCurrentPage(citation.page_number);
-  }
-};
 ```
 
 ---
 
 ## Part 7: Data Fetching
 
-### Current Pattern (in page.tsx)
+### Optimized Pattern (nested query)
 
 ```typescript
-// Server component data fetching
+// Server component data fetching - JOIN findings and citations
 async function getDocumentData(documentId: string) {
   const supabase = createServerClient();
 
-  const [docResult, findingsResult, citationsResult] = await Promise.all([
+  const [docResult, findingsResult] = await Promise.all([
     supabase
       .from('documents')
       .select('*, cases(child_id, children(name))')
       .eq('id', documentId)
       .single(),
 
+    // Nested query: findings with their citations
     supabase
       .from('findings')
-      .select('*')
+      .select(`
+        *,
+        citations (*)
+      `)
       .eq('document_id', documentId)
       .order('category')
       .order('created_at'),
-
-    supabase
-      .from('citations')
-      .select('*')
-      .eq('document_id', documentId),
   ]);
+
+  // Get signed URL for PDF
+  const { data: signedUrl } = await supabase.storage
+    .from('documents')
+    .createSignedUrl(docResult.data?.storage_path || '', 3600);
 
   return {
     document: docResult.data,
     findings: findingsResult.data || [],
-    citations: citationsResult.data || [],
+    pdfUrl: signedUrl?.signedUrl || '',
   };
 }
 ```
 
-### PDF URL Generation
+---
 
-```typescript
-// Get signed URL for PDF viewing
-async function getPdfUrl(storagePath: string) {
-  const supabase = createServerClient();
+## Part 8: Error & Loading States
 
-  const { data, error } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(storagePath, 3600); // 1 hour
+### PDF Viewer States
 
-  if (error) throw error;
-  return data.signedUrl;
+| State | Display |
+|-------|---------|
+| Loading | Skeleton placeholder with pulsing animation |
+| Error (CORS) | "Unable to load PDF. Please try refreshing." |
+| Error (expired URL) | "Session expired. Please refresh the page." |
+| Error (corrupted) | "This PDF cannot be displayed. The file may be corrupted." |
+
+### Findings States
+
+| State | Display |
+|-------|---------|
+| Loading | Skeleton cards with pulsing animation |
+| Empty (no findings) | "No findings were identified in this document." |
+| Empty (filtered) | "No findings need review. Clear the filter to see all." |
+| Partial extraction | Yellow banner: "Some pages could not be read. Findings may be incomplete." |
+
+### Implementation
+
+```tsx
+// Skeleton loader for findings
+function FindingsSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="border rounded-lg p-4 animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+          <div className="h-3 bg-gray-200 rounded w-full mb-1" />
+          <div className="h-3 bg-gray-200 rounded w-2/3" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Error boundary wrapper
+function ErrorBoundary({ children, fallback }: { children: React.ReactNode; fallback: React.ReactNode }) {
+  // Use React's error boundary or react-error-boundary package
 }
 ```
 
 ---
 
-## Part 8: Responsive Design
+## Part 9: Responsive Design
 
-### Desktop (>1024px)
-- True two-pane: 35% findings | 65% document
-- Evidence panel slides up from bottom of right pane
+### Breakpoints
 
-### Tablet (768px - 1024px)
-- Stacked with tabs: [Findings] [Document]
-- Switch between views
-- Evidence panel as modal
+| Breakpoint | Width | Layout |
+|------------|-------|--------|
+| Desktop | >1024px | True two-pane: 35% | 65% |
+| Large tablet | 900px - 1024px | Narrower two-pane: 40% | 60% |
+| Small tablet | 768px - 900px | Stacked with tabs |
+| Mobile | <768px | Single column, findings first |
 
-### Mobile (<768px)
-- Single column, findings first
-- "View in document" button opens PDF in new view
-- Evidence as bottom sheet
+### Tablet Strategy (Clarified)
+
+**Keep side-by-side down to 900px** for simplicity. Below 900px, use tabs:
 
 ```tsx
-// Responsive wrapper
-<div className="flex flex-col lg:flex-row h-screen">
-  {/* Findings - full width on mobile, 35% on desktop */}
-  <div className="w-full lg:w-[35%] lg:border-r overflow-y-auto">
-    <FindingsPanel ... />
+// Responsive layout
+<div className="flex flex-col h-screen">
+  {/* Mobile/small tablet: Tab navigation */}
+  <div className="md:hidden border-b">
+    <button
+      className={activeTab === 'findings' ? 'border-b-2 border-blue-500' : ''}
+      onClick={() => setActiveTab('findings')}
+    >
+      Findings
+    </button>
+    <button
+      className={activeTab === 'document' ? 'border-b-2 border-blue-500' : ''}
+      onClick={() => setActiveTab('document')}
+    >
+      Document
+    </button>
   </div>
 
-  {/* Document - hidden on mobile by default, 65% on desktop */}
-  <div className="hidden lg:flex lg:w-[65%] flex-col">
-    <PdfViewer ... />
+  {/* Content */}
+  <div className="flex-1 flex overflow-hidden">
+    {/* Findings pane */}
+    <div className={`
+      ${activeTab === 'findings' ? 'block' : 'hidden'}
+      md:block md:w-[40%] lg:w-[35%] border-r overflow-y-auto
+    `}>
+      <FindingsPanel ... />
+    </div>
+
+    {/* Document pane */}
+    <div className={`
+      ${activeTab === 'document' ? 'block' : 'hidden'}
+      md:block md:w-[60%] lg:w-[65%] flex flex-col
+    `}>
+      <PdfViewer ... />
+      {showEvidencePanel && <EvidencePanel ... />}
+    </div>
   </div>
 </div>
 ```
 
+**Smart tab switching:** When user clicks "Show evidence" on mobile/tablet, auto-switch to Document tab.
+
 ---
 
-## Part 9: Files to Create/Modify
+## Part 10: URL State Sync (Optional Enhancement)
+
+### Benefits
+- Shareable links to specific findings/pages
+- Browser back/forward works
+- Refresh preserves position
+
+### Implementation
+
+```tsx
+// URL pattern: /document/abc123?page=4&finding=xyz789
+
+import { useSearchParams, useRouter } from 'next/navigation';
+
+const searchParams = useSearchParams();
+const router = useRouter();
+
+// Read from URL on mount
+useEffect(() => {
+  const page = searchParams.get('page');
+  const finding = searchParams.get('finding');
+  if (page) setCurrentPage(parseInt(page));
+  if (finding) {
+    setSelectedFindingId(finding);
+    setShowEvidencePanel(true);
+  }
+}, []);
+
+// Update URL when state changes
+useEffect(() => {
+  const params = new URLSearchParams();
+  if (currentPage > 1) params.set('page', currentPage.toString());
+  if (selectedFindingId) params.set('finding', selectedFindingId);
+
+  const newUrl = params.toString()
+    ? `${pathname}?${params.toString()}`
+    : pathname;
+
+  router.replace(newUrl, { scroll: false });
+}, [currentPage, selectedFindingId]);
+```
+
+---
+
+## Part 11: Files to Create/Modify
 
 ### New Files
 
 | File | Purpose |
 |------|---------|
+| `/src/lib/types/findings.ts` | TypeScript types for Finding, Citation, etc. |
 | `/src/components/ui/Button.tsx` | Reusable button (or use shadcn) |
 | `/src/components/ui/Badge.tsx` | Status badges |
 | `/src/components/ui/Card.tsx` | Card container |
 | `/src/components/ui/Accordion.tsx` | Collapsible sections |
+| `/src/components/ui/Skeleton.tsx` | Loading placeholders |
 | `/src/components/layout/PageHeader.tsx` | Page header with back button |
 | `/src/components/document/FindingsPanel.tsx` | Left pane container |
 | `/src/components/document/FindingCard.tsx` | Individual finding |
 | `/src/components/document/FindingsByCategory.tsx` | Grouped accordion |
 | `/src/components/document/PdfViewer.tsx` | PDF rendering |
-| `/src/components/document/HighlightOverlay.tsx` | Bbox highlight |
 | `/src/components/document/EvidencePanel.tsx` | Citation details |
 | `/src/components/document/VerificationBadge.tsx` | Status pill |
 
@@ -731,47 +1009,94 @@ async function getPdfUrl(storagePath: string) {
 | `/src/app/document/[id]/page.tsx` | Refactor to two-pane layout |
 | `/src/app/globals.css` | Add print styles, animations |
 | `/package.json` | Add react-pdf dependency |
+| `next.config.js` | May need webpack config for pdf.js worker |
 
 ---
 
-## Part 10: Key Decisions Required
+## Part 12: Print Stylesheet
+
+```css
+/* Add to globals.css */
+
+@media print {
+  /* Hide navigation and interactive elements */
+  .no-print,
+  button,
+  nav,
+  .pdf-viewer {
+    display: none !important;
+  }
+
+  /* Reset layout to single column */
+  .two-pane-layout {
+    display: block !important;
+  }
+
+  /* Show findings in full width */
+  .findings-panel {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Style findings for print */
+  .finding-card {
+    page-break-inside: avoid;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 1rem;
+    padding: 1rem;
+  }
+
+  /* Show all citations inline */
+  .citation-inline {
+    display: block !important;
+    border-left: 3px solid #3b82f6;
+    padding-left: 1rem;
+    margin: 0.5rem 0;
+    font-style: italic;
+  }
+
+  /* Page footer */
+  @page {
+    margin: 1in;
+  }
+}
+```
+
+---
+
+## Part 13: Key Decisions Required
 
 Before implementation, decide:
 
-1. **Component library?**
-   - Option A: Add shadcn/ui (recommended - faster, accessible)
-   - Option B: Build primitives from scratch (more control, slower)
-
-2. **PDF rendering approach?**
-   - Option A: react-pdf client-side (recommended - simpler)
-   - Option B: Server-rendered page images (already have code, more complex)
-
-3. **State management?**
-   - Option A: useState in page component (fine for MVP)
-   - Option B: Zustand/Jotai (if state gets complex)
-
-4. **Mobile approach?**
-   - Option A: Responsive two-pane (recommended)
-   - Option B: Separate mobile routes
+| Decision | Recommendation | Rationale |
+|----------|----------------|-----------|
+| Component library | **shadcn/ui** | Fast, accessible, customizable with Tailwind |
+| PDF rendering | **react-pdf client-side** | Simpler, signed URLs already working |
+| State management | **useState for MVP** | Migrate to Zustand only if needed |
+| Mobile approach | **Responsive two-pane** | Single codebase, test on real devices |
 
 ---
 
-## Part 11: Success Criteria
+## Part 14: Success Criteria
 
 The two-pane UI is complete when:
 
+- [ ] PDF renders correctly in right pane (Phase 1 gate)
 - [ ] User can see findings list on left, PDF on right (desktop)
 - [ ] Clicking "Show evidence" jumps PDF to correct page
 - [ ] Citation bbox is highlighted on PDF page
 - [ ] Evidence panel shows quote text and verification status
 - [ ] "Next/Prev" navigates between citations
 - [ ] "Show only needs review" filters findings
+- [ ] Loading states show skeletons, not spinners
+- [ ] Error states have helpful messages
+- [ ] Keyboard navigation works (Escape, arrows)
 - [ ] Print view shows findings with inline citations
-- [ ] Mobile view is usable (stacked or tabbed)
+- [ ] Mobile/tablet view is usable (stacked or tabbed)
 
 ---
 
-## Appendix: Useful Commands
+## Appendix A: Useful Commands
 
 ```bash
 # Development
@@ -783,13 +1108,17 @@ npm run lint             # Run linter
 npx supabase db reset    # Reset local DB
 npx supabase gen types   # Regenerate TypeScript types
 
+# shadcn/ui (if using)
+npx shadcn-ui@latest init
+npx shadcn-ui@latest add button badge card accordion
+
 # Deployment
 git push origin main     # Auto-deploys to Vercel
 ```
 
 ---
 
-## Appendix: Reference Files
+## Appendix B: Reference Files
 
 | Document | Location | Purpose |
 |----------|----------|---------|
@@ -799,6 +1128,15 @@ git push origin main     # Auto-deploys to Vercel
 | Database schema | `/supabase/migrations/001_init_iep_copilot.sql` | Full schema |
 | Document AI integration | `/src/lib/docai.ts` | Text extraction |
 | Findings generation | `/src/inngest/functions/generateFindings.ts` | AI analysis |
+
+---
+
+## Appendix C: Changelog
+
+| Date | Changes |
+|------|---------|
+| 2026-01-01 | Initial version |
+| 2026-01-01 | Incorporated external review feedback: reordered phases (PDF first), fixed worker config, fixed highlight positioning, added error/loading states, clarified tablet strategy, added keyboard nav, added URL sync option |
 
 ---
 
