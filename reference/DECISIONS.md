@@ -385,68 +385,90 @@
 
 ---
 
-## 2026-01-01: Layout Parser Response Format Handling
+## 2026-01-01: Layout Parser Response Format Handling (MILESTONE FIX)
 
-**Status**: Implemented
-**Decision**: Support both OCR and Layout Parser response formats from Document AI
-**Context**: Document AI returned 0 pages because code expected OCR format but Layout Parser was configured
+**Status**: Implemented ✅ MVP WORKING
+**Decision**: Support Layout Parser response format with proper page count derivation
+**Context**: Document AI returned 0 pages because code expected `document.pages` array but Layout Parser uses `documentLayout.blocks` with `pageSpan`
 
-### Alternatives Considered
-- **Use OCR processor only**:
-  - Would work but loses layout parsing benefits
-  - Less accurate for complex documents
-- **Change processor type in GCP**:
-  - Disruptive to existing setup
-  - Layout Parser is better for IEP documents
-- **Detect and handle both formats**:
-  - More robust
-  - Supports future processor changes
+### The Actual Problem (Root Cause Analysis)
+1. Layout Parser does NOT populate `document.text` or `document.pages[].paragraphs`
+2. Instead, all text is in `documentLayout.blocks[].textBlock.text`
+3. Page information comes from `block.pageSpan.pageStart/pageEnd`, not `document.pages.length`
+4. Our code was checking `document.pages.length` which was 0, causing early return
 
-### Rationale
-- Layout Parser returns `documentLayout.blocks[]` with `textBlock`, `tableBlock`, etc.
-- OCR returns `document.text` + `pages[].paragraphs[]` format
-- Code was checking `if (!document.pages || !document.text)` which failed for Layout Parser
-- Dual-format support enables processor flexibility
-- No breaking changes needed on GCP side
+### Actual Response Format (from parsedTexasResults.json)
+```json
+{
+  "pages": [{"pageNumber": 1, "image": {...}}],  // NO TEXT HERE
+  "documentLayout": {
+    "blocks": [
+      {
+        "blockId": "...",
+        "textBlock": {"text": "ARD Type:", "type": "paragraph"},
+        "pageSpan": {"pageStart": 1, "pageEnd": 1},
+        "boundingBox": {...}
+      }
+    ]
+  }
+}
+```
+
+### The Fix
+- Derive page count from blocks' `pageSpan.pageEnd` values (find max)
+- Extract text from `textBlock.text` for each block
+- Group text by page number from `pageSpan.pageStart`
+- Handle nested blocks in `textBlock.blocks` if present
 
 ### Consequences
-- ✅ Works with both Layout Parser and OCR processors
-- ✅ No reconfiguration needed in GCP
-- ✅ Better debugging with format detection logging
-- ✅ Handles future processor changes gracefully
-- ❌ More complex extraction code
-- ❌ Need to maintain two code paths
+- ✅ Successfully processed 7 real IEP documents
+- ✅ Full text extraction working
+- ✅ Findings generated and displayed in UI
+- ✅ Citations verified against source
+- ❌ Bounding boxes may still be null (secondary issue)
 
 ---
 
-## 2026-01-01: Fix Escaped Newlines in GCP Credentials
+## 2026-01-01: Base64 Encoding for GCP Credentials (RECOMMENDED)
 
-**Status**: Implemented
-**Decision**: Preprocess GCP service account JSON to fix escaped newlines before parsing
-**Context**: Vercel environment variables store `\n` as literal characters, breaking JSON.parse()
+**Status**: Implemented ✅ MVP WORKING
+**Decision**: Use Base64-encoded service account JSON as primary credential method
+**Context**: Vercel environment variables mangle JSON with newlines, causing parsing failures
 
 ### Alternatives Considered
-- **Base64 encode credentials**:
-  - Would work but requires encoding step
-  - Less readable for debugging
+- **Plain JSON with newline preprocessing**:
+  - Fragile, depends on escape sequence handling
+  - Failed in production despite working locally
 - **Store credentials in secret manager**:
   - More secure but adds complexity
   - Additional service dependency
-- **Preprocess before JSON.parse**:
-  - Simple fix at parse time
-  - No changes needed to how credentials are stored
+- **Base64 encode credentials** (CHOSEN):
+  - Completely avoids all escape/newline issues
+  - Simple to generate: `cat service-account.json | base64`
+  - Industry standard practice
 
-### Rationale
-- Private key contains newlines (`-----BEGIN PRIVATE KEY-----\n...`)
-- Vercel stores these as literal `\n` instead of actual newlines
-- `JSON.parse()` fails with "Bad control character" error
-- Simple `.replace(/\\n/g, "\n")` fixes the issue
+### Implementation
+```typescript
+// Priority 1: Base64-encoded service account key (recommended for Vercel)
+const base64Key = process.env.GCP_SERVICE_ACCOUNT_KEY_BASE64;
+if (base64Key) {
+  const jsonStr = Buffer.from(base64Key, "base64").toString("utf-8");
+  const credentials = JSON.parse(jsonStr);
+  return new DocumentProcessorServiceClient({ credentials });
+}
+```
+
+### How to Set Up
+1. Get your service account JSON file
+2. Run: `cat your-service-account.json | base64`
+3. Copy the output to Vercel env var: `GCP_SERVICE_ACCOUNT_KEY_BASE64`
 
 ### Consequences
-- ✅ Works with standard Vercel environment variable setup
-- ✅ No changes needed to deployment process
-- ✅ Backward compatible (works if newlines are already correct)
-- ❌ Must remember this quirk for future credential handling
+- ✅ Works reliably in Vercel production
+- ✅ No escape sequence issues
+- ✅ Simple one-command generation
+- ✅ Fallback to plain JSON still available
+- ❌ Less readable (but you shouldn't be reading credentials anyway)
 
 ---
 

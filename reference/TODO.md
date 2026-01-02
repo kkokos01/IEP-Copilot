@@ -1,15 +1,40 @@
 # TODO
 
+## 🎉 MILESTONE ACHIEVED: Functional MVP (v3.3)
+
+**Date**: 2026-01-01
+**Commit**: `0195af2`
+**Achievement**: Successfully uploaded and processed 7 real IEP documents with findings displayed in UI!
+
+This is our first fully functional end-to-end MVP. The complete pipeline works:
+1. ✅ User uploads PDF via UI
+2. ✅ Document stored in Supabase Storage
+3. ✅ Google Document AI extracts text (Layout Parser format)
+4. ✅ Claude analyzes content and generates findings
+5. ✅ Citations verified against source text
+6. ✅ Findings displayed in UI with categories and quotes
+
+---
+
 ## 🎯 Focus This Week
 **Week of Jan 1-7, 2026**
 
 - [x] **Fix OCR normalization** for better citation verification accuracy ✅ DONE
 - [x] **Implement user-friendly error messages** with actionable guidance ✅ DONE
 - [x] **Set up monitoring and alerting** for document processing failures ✅ DONE (Sentry)
+- [x] **Fix Document AI Layout Parser extraction** - pages now extract correctly ✅ DONE
+- [x] **Fix GCP credential handling** - Base64 encoding for Vercel ✅ DONE
 - [ ] **Add document processing progress indicators** with real-time updates
 - [ ] **Create onboarding flow** for beta users with tutorial
 
 ### Completed This Sprint ✅
+
+#### Document Processing Pipeline Fixed (2026-01-01)
+- ✅ Fixed Layout Parser page count derivation from `pageSpan` data
+- ✅ Fixed nested block text extraction for full content
+- ✅ Implemented Base64 credential encoding for Vercel deployment
+- ✅ Added comprehensive debug logging for format detection
+- ✅ Successfully processed 7 real IEP documents end-to-end
 
 #### OCR Normalization & Adaptive Fuzzy Matching (2026-01-01)
 - ✅ Enabled fuzzy verification by default (`ENABLE_FUZZY_VERIFICATION !== "false"`)
