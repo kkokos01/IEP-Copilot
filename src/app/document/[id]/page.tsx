@@ -282,6 +282,8 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                                 const findingCitations = getCitationsForFinding(finding.id)
                                 const citationIndex = findingCitations.findIndex(c => c.id === citation.id)
 
+                                // Ensure finding is selected for evidence panel
+                                setSelectedFinding(finding)
                                 setCurrentPage(citation.page_number)
                                 setSelectedCitation(citation)
                                 setCurrentCitationIndex(citationIndex >= 0 ? citationIndex : 0)
