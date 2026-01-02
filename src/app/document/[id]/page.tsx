@@ -22,7 +22,8 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   const [documentId, setDocumentId] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [showPdfViewer, setShowPdfViewer] = useState(false)
+  // Mobile tab state
+  const [activeTab, setActiveTab] = useState<'findings' | 'document'>('findings')
   const router = useRouter()
 
   // Handle async params
@@ -65,6 +66,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
       .from('findings')
       .select('*')
       .eq('document_id', documentId)
+      .order('category')
       .order('created_at', { ascending: false })
 
     setFindings(findingsData || [])
@@ -115,152 +117,181 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-500">Loading document...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => router.push(`/case/${document?.case_id}`)}
-                className="text-gray-600 hover:text-gray-900 mr-4"
-              >
-                ← Back to Case
-              </button>
-              <h1 className="text-xl font-semibold">
-                {document?.source_filename}
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{user?.email}</span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center">
+          <button
+            onClick={() => router.push(`/case/${document?.case_id}`)}
+            className="text-blue-600 hover:text-blue-800 hover:underline mr-4"
+          >
+            ← Back to Case
+          </button>
+          <h1 className="text-lg font-semibold truncate max-w-md">
+            {document?.source_filename}
+          </h1>
+          <span className="ml-3 text-sm text-gray-500">
+            {document?.page_count} pages
+          </span>
         </div>
-      </nav>
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600 hidden sm:inline">{user?.email}</span>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          
-          {/* Document Info */}
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-lg font-medium mb-2">Document Information</h2>
-                <div className="text-sm text-gray-600">
-                  <p>Type: {document?.type}</p>
-                  <p>Pages: {document?.page_count}</p>
-                  <p>Case: {document?.cases?.name} ({document?.cases?.children?.name})</p>
-                </div>
-              </div>
-              {pdfUrl && (
-                <button
-                  onClick={() => setShowPdfViewer(!showPdfViewer)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  {showPdfViewer ? 'Hide PDF' : 'View PDF'}
-                </button>
-              )}
+      {/* Mobile Tab Navigation */}
+      <div className="md:hidden border-b bg-white flex-shrink-0">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab('findings')}
+            className={`flex-1 py-3 text-center text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'findings'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Findings ({findings.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('document')}
+            className={`flex-1 py-3 text-center text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'document'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Document
+          </button>
+        </div>
+      </div>
+
+      {/* Two-Pane Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Pane: Findings */}
+        <div className={`
+          ${activeTab === 'findings' ? 'block' : 'hidden'}
+          md:block w-full md:w-[35%] lg:w-[35%] border-r bg-white overflow-y-auto
+        `}>
+          <div className="p-4">
+            {/* Document Info Summary */}
+            <div className="mb-4 pb-4 border-b">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Type:</span> {document?.type}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Child:</span> {document?.cases?.children?.name}
+              </p>
             </div>
-          </div>
 
-          {/* PDF Viewer (Phase 1 test) */}
-          {showPdfViewer && pdfUrl && (
-            <div className="bg-white shadow rounded-lg p-4 mb-6">
-              <div className="h-[600px]">
-                <PdfViewer
-                  url={pdfUrl}
-                  pageNumber={currentPage}
-                  onPageChange={setCurrentPage}
-                  totalPages={document?.page_count || 0}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Findings */}
-          <div className="bg-white shadow rounded-lg p-6">
+            {/* Findings Header */}
             <h2 className="text-lg font-medium mb-4">
-              AI-Generated Findings ({findings.length})
+              Findings ({findings.length})
             </h2>
-            
+
             {findings.length === 0 ? (
-              <p className="text-gray-500">No findings available</p>
+              <p className="text-gray-500 text-sm">No findings identified in this document.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {findings.map((finding) => (
                   <div
                     key={finding.id}
-                    className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50"
+                    className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                      selectedFinding?.id === finding.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
                     onClick={() => setSelectedFinding(
                       selectedFinding?.id === finding.id ? null : finding
                     )}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium">{finding.title}</h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(finding.category)}`}>
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-medium text-sm leading-tight">{finding.title}</h3>
+                      <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full flex-shrink-0 ${getCategoryColor(finding.category)}`}>
                         {finding.category}
                       </span>
                     </div>
-                    
-                    <p className="text-gray-700 mb-2">{finding.summary}</p>
-                    
-                    {finding.why_it_matters && (
-                      <div className="mb-2">
-                        <span className="font-medium text-sm">Why it matters: </span>
-                        <span className="text-sm text-gray-600">{finding.why_it_matters}</span>
-                      </div>
-                    )}
 
-                    {finding.questions_to_ask.length > 0 && (
-                      <div className="mb-2">
-                        <span className="font-medium text-sm">Questions to ask: </span>
-                        <ul className="text-sm text-gray-600 list-disc list-inside">
-                          {finding.questions_to_ask.map((question, idx) => (
-                            <li key={idx}>{question}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <p className="text-gray-600 text-sm mb-2 line-clamp-2">{finding.summary}</p>
 
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-gray-500">
-                        Confidence: {Math.round((finding.confidence || 0) * 100)}%
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">
+                        {Math.round((finding.confidence || 0) * 100)}% confidence
                       </span>
-                      <span className="text-xs text-blue-600">
+                      <span className="text-blue-600">
                         {getCitationsForFinding(finding.id).length} citation(s)
                       </span>
                     </div>
 
-                    {/* Citations */}
+                    {/* Expanded Citation Details */}
                     {selectedFinding?.id === finding.id && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <h4 className="font-medium text-sm mb-2">Citations:</h4>
-                        {getCitationsForFinding(finding.id).map((citation) => (
-                          <div key={citation.id} className="bg-gray-50 p-3 rounded mb-2">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="text-sm font-medium">Page {citation.page_number}</span>
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                citation.verification_status === 'verified' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : citation.verification_status === 'failed'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {citation.verification_status}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-700 italic">&ldquo;{citation.quote_text}&rdquo;</p>
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        {finding.why_it_matters && (
+                          <div className="mb-2">
+                            <span className="font-medium text-xs text-gray-700">Why it matters:</span>
+                            <p className="text-xs text-gray-600 mt-0.5">{finding.why_it_matters}</p>
                           </div>
-                        ))}
+                        )}
+
+                        {finding.questions_to_ask && finding.questions_to_ask.length > 0 && (
+                          <div className="mb-2">
+                            <span className="font-medium text-xs text-gray-700">Questions to ask:</span>
+                            <ul className="text-xs text-gray-600 list-disc list-inside mt-0.5">
+                              {finding.questions_to_ask.map((question, idx) => (
+                                <li key={idx}>{question}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div className="mt-2">
+                          <span className="font-medium text-xs text-gray-700">Citations:</span>
+                          {getCitationsForFinding(finding.id).map((citation) => (
+                            <div
+                              key={citation.id}
+                              className="bg-gray-100 p-2 rounded mt-1 cursor-pointer hover:bg-gray-200 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCurrentPage(citation.page_number)
+                                setActiveTab('document') // Switch to document on mobile
+                              }}
+                            >
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-medium text-blue-600">
+                                  → Page {citation.page_number}
+                                </span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  citation.verification_status === 'verified'
+                                    ? 'bg-green-100 text-green-700'
+                                    : citation.verification_status === 'failed'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {citation.verification_status}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 italic line-clamp-2">
+                                &ldquo;{citation.quote_text}&rdquo;
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -269,7 +300,26 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
             )}
           </div>
         </div>
-      </main>
+
+        {/* Right Pane: PDF Viewer */}
+        <div className={`
+          ${activeTab === 'document' ? 'block' : 'hidden'}
+          md:block w-full md:w-[65%] lg:w-[65%] flex flex-col bg-gray-100
+        `}>
+          {pdfUrl ? (
+            <PdfViewer
+              url={pdfUrl}
+              pageNumber={currentPage}
+              onPageChange={setCurrentPage}
+              totalPages={document?.page_count || 0}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500">PDF not available</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
