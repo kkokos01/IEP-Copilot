@@ -22,6 +22,9 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   const [documentId, setDocumentId] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  // Highlight state for citation bbox
+  const [highlightBbox, setHighlightBbox] = useState<{x0: number; y0: number; x1: number; y1: number} | null>(null)
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null)
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<'findings' | 'document'>('findings')
   const router = useRouter()
@@ -265,10 +268,22 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                           {getCitationsForFinding(finding.id).map((citation) => (
                             <div
                               key={citation.id}
-                              className="bg-gray-100 p-2 rounded mt-1 cursor-pointer hover:bg-gray-200 transition-colors"
+                              className={`p-2 rounded mt-1 cursor-pointer transition-colors ${
+                                selectedCitation?.id === citation.id
+                                  ? 'bg-yellow-100 ring-2 ring-yellow-400'
+                                  : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setCurrentPage(citation.page_number)
+                                setSelectedCitation(citation)
+                                // Set highlight bbox if available
+                                if (citation.bbox) {
+                                  const bbox = citation.bbox as {x0: number; y0: number; x1: number; y1: number}
+                                  setHighlightBbox(bbox)
+                                } else {
+                                  setHighlightBbox(null)
+                                }
                                 setActiveTab('document') // Switch to document on mobile
                               }}
                             >
@@ -310,8 +325,16 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
             <PdfViewer
               url={pdfUrl}
               pageNumber={currentPage}
-              onPageChange={setCurrentPage}
+              onPageChange={(page) => {
+                setCurrentPage(page)
+                // Clear highlight when manually navigating
+                if (selectedCitation?.page_number !== page) {
+                  setHighlightBbox(null)
+                  setSelectedCitation(null)
+                }
+              }}
               totalPages={document?.page_count || 0}
+              highlightBbox={currentPage === selectedCitation?.page_number ? highlightBbox : null}
             />
           ) : (
             <div className="flex items-center justify-center h-full">
