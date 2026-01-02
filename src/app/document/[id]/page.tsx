@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
 import { PdfViewer } from '@/components/document/PdfViewer'
+import { EvidencePanel } from '@/components/document/EvidencePanel'
 
 type Document = Database['public']['Tables']['documents']['Row'] & {
   cases: { name: string; children: { name: string } }
@@ -25,6 +26,9 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   // Highlight state for citation bbox
   const [highlightBbox, setHighlightBbox] = useState<{x0: number; y0: number; x1: number; y1: number} | null>(null)
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null)
+  // Evidence panel state
+  const [showEvidencePanel, setShowEvidencePanel] = useState(false)
+  const [currentCitationIndex, setCurrentCitationIndex] = useState(0)
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<'findings' | 'document'>('findings')
   const router = useRouter()
@@ -275,8 +279,14 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                               }`}
                               onClick={(e) => {
                                 e.stopPropagation()
+                                const findingCitations = getCitationsForFinding(finding.id)
+                                const citationIndex = findingCitations.findIndex(c => c.id === citation.id)
+
                                 setCurrentPage(citation.page_number)
                                 setSelectedCitation(citation)
+                                setCurrentCitationIndex(citationIndex >= 0 ? citationIndex : 0)
+                                setShowEvidencePanel(true)
+
                                 // Set highlight bbox if available
                                 if (citation.bbox) {
                                   const bbox = citation.bbox as {x0: number; y0: number; x1: number; y1: number}
@@ -321,25 +331,56 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
           ${activeTab === 'document' ? 'block' : 'hidden'}
           md:block w-full md:w-[65%] lg:w-[65%] flex flex-col bg-gray-100
         `}>
-          {pdfUrl ? (
-            <PdfViewer
-              url={pdfUrl}
-              pageNumber={currentPage}
-              onPageChange={(page) => {
-                setCurrentPage(page)
-                // Clear highlight when manually navigating
-                if (selectedCitation?.page_number !== page) {
-                  setHighlightBbox(null)
-                  setSelectedCitation(null)
+          <div className="flex-1 overflow-hidden">
+            {pdfUrl ? (
+              <PdfViewer
+                url={pdfUrl}
+                pageNumber={currentPage}
+                onPageChange={(page) => {
+                  setCurrentPage(page)
+                  // Clear highlight when manually navigating
+                  if (selectedCitation?.page_number !== page) {
+                    setHighlightBbox(null)
+                    setSelectedCitation(null)
+                    setShowEvidencePanel(false)
+                  }
+                }}
+                totalPages={document?.page_count || 0}
+                highlightBbox={currentPage === selectedCitation?.page_number ? highlightBbox : null}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-500">PDF not available</p>
+              </div>
+            )}
+          </div>
+
+          {/* Evidence Panel */}
+          {showEvidencePanel && selectedFinding && (
+            <EvidencePanel
+              citations={getCitationsForFinding(selectedFinding.id)}
+              currentIndex={currentCitationIndex}
+              onNavigate={(index) => {
+                const findingCitations = getCitationsForFinding(selectedFinding.id)
+                const citation = findingCitations[index]
+                if (citation) {
+                  setCurrentCitationIndex(index)
+                  setSelectedCitation(citation)
+                  setCurrentPage(citation.page_number)
+                  if (citation.bbox) {
+                    const bbox = citation.bbox as {x0: number; y0: number; x1: number; y1: number}
+                    setHighlightBbox(bbox)
+                  } else {
+                    setHighlightBbox(null)
+                  }
                 }
               }}
-              totalPages={document?.page_count || 0}
-              highlightBbox={currentPage === selectedCitation?.page_number ? highlightBbox : null}
+              onClose={() => {
+                setShowEvidencePanel(false)
+                setSelectedCitation(null)
+                setHighlightBbox(null)
+              }}
             />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-500">PDF not available</p>
-            </div>
           )}
         </div>
       </div>
