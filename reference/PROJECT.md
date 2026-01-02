@@ -4,10 +4,10 @@
 
 **IEP Copilot** is an AI-powered platform that helps parents and advocates analyze special education documents with verified citations.
 
-**Status**: ✅ FUNCTIONAL MVP (v3.3) - End-to-end document processing working!
+**Status**: ✅ FUNCTIONAL MVP (v3.4) - End-to-end document processing with citation highlighting!
 **Last Updated**: 2026-01-01
-**Stable Commit**: `0195af2` - Successfully processed 7 real IEP documents with findings displayed in UI
-**Current Focus**: Beta user onboarding and feedback collection  
+**Stable Commit**: `4b2f916` - Client-side PDF text highlighting for citations
+**Current Focus**: Fix remaining edge cases in citation highlighting  
 
 ## Quick Links
 - [📋 TODO.md](./TODO.md) - Current sprint focus and roadmap
@@ -37,6 +37,7 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - ✅ Event-driven background processing with retries
 - ✅ Partial extraction tracking and recovery
 - ✅ Automated database migrations via GitHub Actions
+- ✅ PDF citation highlighting with client-side text search (mostly working)
 
 ## Key Decisions Made
 
@@ -65,7 +66,7 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 
 ### Remaining Issues (Non-Blocking)
 - **Large Documents**: Processing timeouts on PDFs >100 pages (needs checkpointing)
-- **Bounding Boxes**: May be null for some documents (affects PDF highlighting only)
+- **Citation Highlighting**: Works for most citations; some edge cases not highlighting (investigating)
 - **Progress Indicators**: No real-time progress shown during processing
 
 ### Security Concerns
@@ -106,6 +107,8 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - ✅ **END-TO-END PIPELINE WORKING** (7 documents processed successfully!)
 - ✅ Layout Parser extraction fixed
 - ✅ GCP credentials working in production (Base64)
+- ✅ PDF citation highlighting (client-side text search)
+- ⚠️ Some citations not highlighting (edge cases)
 - ⚠️ Need beta user feedback
 - ⚠️ Need to configure Sentry DSN in production
 

@@ -472,6 +472,73 @@ if (base64Key) {
 
 ---
 
+## 2026-01-01: Client-Side PDF Text Highlighting
+
+**Status**: Implemented (Mostly Working)
+**Decision**: Use pdf.js text layer for client-side citation highlighting instead of server-side bbox
+**Context**: Document AI Layout Parser doesn't provide bounding box coordinates; all citations had null bbox
+
+### The Problem
+- Layout Parser provides intelligent document structure but NO bounding boxes
+- OCR processor provides bounding boxes but less intelligent text extraction
+- 100% of citations had null bbox, so PDF highlighting wasn't working
+
+### Alternatives Considered
+- **Server-side bbox from OCR processor**:
+  - Requires switching away from Layout Parser
+  - Loses intelligent document structure/chunking
+  - User explicitly rejected: "I do not want less intelligent text extraction"
+- **Hybrid extraction (Layout Parser + OCR)**:
+  - Run both processors and merge results
+  - Doubles API costs and processing time
+  - Complex text matching between different extractions
+- **Page-level fallback (just navigate to page)**:
+  - Simple but not useful: "we already navigate to the page but we need to show specific text"
+- **Client-side text search** (CHOSEN):
+  - Enable pdf.js text layer rendering
+  - Search for `quote_text` in the text layer DOM
+  - Highlight matching text spans with CSS
+
+### Implementation
+```typescript
+// PdfViewer.tsx
+// 1. Enable text layer rendering
+<Page renderTextLayer={true} onRenderSuccess={() => setTextLayerReady(true)} />
+
+// 2. Search for quote text after render
+const normalizedSearch = normalizeText(searchText);
+const normalizedPage = normalizeText(fullText);
+const matchStart = normalizedPage.indexOf(normalizedSearch);
+
+// 3. Highlight matching spans
+if (spanOverlaps) {
+  span.style.backgroundColor = 'rgba(255, 213, 0, 0.5)';
+}
+```
+
+### Fuzzy Matching Strategy
+1. **Full match**: Search for entire normalized quote
+2. **Partial fallback**: Try 80%, 60%, 40% of quote length
+3. **Normalization**: Handle whitespace, quotes, dashes variations
+
+### Consequences
+- ✅ Maintains Layout Parser's intelligent extraction
+- ✅ No additional API calls or processing costs
+- ✅ Works with verified citations (text confirmed to exist)
+- ✅ Accurate text-level highlighting (not just bbox rectangles)
+- ✅ Auto-scrolls to highlighted text
+- ⚠️ Some edge cases still not highlighting (needs investigation)
+- ❌ Requires text layer rendering (slightly more DOM elements)
+- ❌ Matching can fail if text differs significantly from stored quote
+
+### Known Edge Cases (To Investigate)
+- Very long quotes may have OCR differences in middle
+- Multi-paragraph quotes spanning different blocks
+- Text with significant formatting differences
+- Quotes from scanned documents with OCR errors
+
+---
+
 ## Pending Decisions
 
 ### Migrate to Vercel OIDC for GCP Authentication

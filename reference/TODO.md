@@ -24,10 +24,21 @@ This is our first fully functional end-to-end MVP. The complete pipeline works:
 - [x] **Set up monitoring and alerting** for document processing failures ✅ DONE (Sentry)
 - [x] **Fix Document AI Layout Parser extraction** - pages now extract correctly ✅ DONE
 - [x] **Fix GCP credential handling** - Base64 encoding for Vercel ✅ DONE
+- [x] **Implement PDF citation highlighting** - client-side text search ✅ MOSTLY WORKING
 - [ ] **Add document processing progress indicators** with real-time updates
 - [ ] **Create onboarding flow** for beta users with tutorial
 
 ### Completed This Sprint ✅
+
+#### Client-Side Citation Highlighting (2026-01-01)
+- ✅ Implemented pdf.js text layer rendering in PdfViewer
+- ✅ Added `searchText` prop to search for quote_text in PDF
+- ✅ Client-side text matching with normalization (handles OCR variations)
+- ✅ Fuzzy matching with partial match fallback (80%, 60%, 40%)
+- ✅ Auto-scroll to highlighted text
+- ✅ Yellow highlight styling on matching spans
+- ⚠️ Works for most citations, some edge cases still not highlighting
+- 🔲 Next: Investigate remaining non-highlighting citations
 
 #### Document Processing Pipeline Fixed (2026-01-01)
 - ✅ Fixed Layout Parser page count derivation from `pageSpan` data
@@ -119,10 +130,11 @@ This is our first fully functional end-to-end MVP. The complete pipeline works:
   - Allow custom finding tags
   - Improve finding prioritization
   
-- [ ] **Enhanced citation viewer**
-  - Interactive PDF highlighting
-  - Jump to citation location
-  - Show surrounding context
+- [~] **Enhanced citation viewer** (IN PROGRESS)
+  - [x] Interactive PDF highlighting (client-side text search)
+  - [x] Jump to citation location (auto-scroll)
+  - [ ] Fix remaining edge cases where highlighting fails
+  - [ ] Show surrounding context
   
 - [ ] **Collaboration features**
   - Share documents with advocates
