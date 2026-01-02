@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
+import { PdfViewer } from '@/components/document/PdfViewer'
 
 type Document = Database['public']['Tables']['documents']['Row'] & {
   cases: { name: string; children: { name: string } }
@@ -19,6 +20,9 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true)
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null)
   const [documentId, setDocumentId] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [showPdfViewer, setShowPdfViewer] = useState(false)
   const router = useRouter()
 
   // Handle async params
@@ -72,6 +76,19 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
       .eq('document_id', documentId)
 
     setCitations(citationsData || [])
+
+    // Get signed URL for PDF viewing
+    if (doc.storage_path) {
+      const { data: signedUrlData } = await getSupabaseClient()
+        .storage
+        .from('documents')
+        .createSignedUrl(doc.storage_path, 3600) // 1 hour expiry
+
+      if (signedUrlData?.signedUrl) {
+        setPdfUrl(signedUrlData.signedUrl)
+      }
+    }
+
     setLoading(false)
   }
 
@@ -135,13 +152,39 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
           
           {/* Document Info */}
           <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-medium mb-2">Document Information</h2>
-            <div className="text-sm text-gray-600">
-              <p>Type: {document?.type}</p>
-              <p>Pages: {document?.page_count}</p>
-              <p>Case: {document?.cases?.name} ({document?.cases?.children?.name})</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-lg font-medium mb-2">Document Information</h2>
+                <div className="text-sm text-gray-600">
+                  <p>Type: {document?.type}</p>
+                  <p>Pages: {document?.page_count}</p>
+                  <p>Case: {document?.cases?.name} ({document?.cases?.children?.name})</p>
+                </div>
+              </div>
+              {pdfUrl && (
+                <button
+                  onClick={() => setShowPdfViewer(!showPdfViewer)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  {showPdfViewer ? 'Hide PDF' : 'View PDF'}
+                </button>
+              )}
             </div>
           </div>
+
+          {/* PDF Viewer (Phase 1 test) */}
+          {showPdfViewer && pdfUrl && (
+            <div className="bg-white shadow rounded-lg p-4 mb-6">
+              <div className="h-[600px]">
+                <PdfViewer
+                  url={pdfUrl}
+                  pageNumber={currentPage}
+                  onPageChange={setCurrentPage}
+                  totalPages={document?.page_count || 0}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Findings */}
           <div className="bg-white shadow rounded-lg p-6">

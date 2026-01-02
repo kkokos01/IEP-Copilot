@@ -283,8 +283,9 @@ npm install react-pdf
 
 import { useState, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+// Note: CSS paths changed in react-pdf v10
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 // IMPORTANT: This worker config is required for Next.js 15 App Router
 // The unpkg approach may fail - use import.meta.url instead
