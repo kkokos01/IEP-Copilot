@@ -374,6 +374,21 @@ function extractPagesFromLayout(document: DocAIDocument, pageOffset: number): Ex
     return [];
   }
 
+  // Debug: Log first block structure to understand Layout Parser format
+  if (layoutBlocks.length > 0) {
+    const sampleBlock = layoutBlocks[0];
+    console.log("Layout Parser: Sample block structure for text extraction:", {
+      hasTextBlock: !!sampleBlock.textBlock,
+      textBlockText: sampleBlock.textBlock?.text?.substring(0, 50),
+      textBlockHasNestedBlocks: !!sampleBlock.textBlock?.blocks,
+      nestedBlocksCount: sampleBlock.textBlock?.blocks?.length || 0,
+      hasTableBlock: !!sampleBlock.tableBlock,
+      hasListBlock: !!sampleBlock.listBlock,
+      blockKeys: Object.keys(sampleBlock),
+      textBlockKeys: sampleBlock.textBlock ? Object.keys(sampleBlock.textBlock) : [],
+    });
+  }
+
   // Group blocks by page
   const pageTexts: Map<number, string[]> = new Map();
 
@@ -385,8 +400,16 @@ function extractPagesFromLayout(document: DocAIDocument, pageOffset: number): Ex
   function extractTextFromLayoutBlock(block: LayoutBlock): string {
     let text = "";
 
+    // Direct text content
     if (block.textBlock?.text) {
       text += block.textBlock.text;
+    }
+
+    // Nested blocks within textBlock (Layout Parser nests content this way)
+    if (block.textBlock?.blocks) {
+      for (const nestedBlock of block.textBlock.blocks) {
+        text += extractTextFromLayoutBlock(nestedBlock) + " ";
+      }
     }
 
     // Handle table blocks
@@ -481,10 +504,10 @@ function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): E
     }
   }
 
-  function processLayoutBlock(block: LayoutBlock) {
-    const pageNumber = pageOffset + (block.pageSpan?.pageStart || 1);
+  function processLayoutBlock(block: LayoutBlock, inheritedPageNumber?: number) {
+    const pageNumber = inheritedPageNumber || pageOffset + (block.pageSpan?.pageStart || 1);
 
-    // Text blocks
+    // Text blocks - direct text content
     if (block.textBlock?.text) {
       const { textNormalized } = preparePageTextForStorage(block.textBlock.text);
       blocks.push({
@@ -496,6 +519,13 @@ function extractBlocksFromLayout(document: DocAIDocument, pageOffset: number): E
         confidence: null,
         readingOrder: globalReadingOrder++,
       });
+    }
+
+    // Nested blocks within textBlock (Layout Parser nests content this way)
+    if (block.textBlock?.blocks) {
+      for (const nestedBlock of block.textBlock.blocks) {
+        processLayoutBlock(nestedBlock, pageNumber);
+      }
     }
 
     // Table blocks
