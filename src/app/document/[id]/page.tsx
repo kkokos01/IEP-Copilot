@@ -387,6 +387,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
                 }}
                 totalPages={document?.page_count || 0}
                 highlightBbox={currentPage === selectedCitation?.page_number ? highlightBbox : null}
+                searchText={currentPage === selectedCitation?.page_number ? selectedCitation?.quote_text : null}
               />
             ) : (
               <div className="flex items-center justify-center h-full">

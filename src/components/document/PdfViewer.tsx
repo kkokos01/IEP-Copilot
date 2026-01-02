@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -25,6 +25,8 @@ interface PdfViewerProps {
   onPageChange: (page: number) => void;
   totalPages: number;
   highlightBbox?: BoundingBox | null;
+  /** Text to search for and highlight in the PDF text layer */
+  searchText?: string | null;
 }
 
 export function PdfViewer({
@@ -32,13 +34,16 @@ export function PdfViewer({
   pageNumber,
   onPageChange,
   totalPages,
-  highlightBbox
+  highlightBbox,
+  searchText
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageWrapperRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(600);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [textLayerReady, setTextLayerReady] = useState(false);
 
   // Measure container width for responsive PDF sizing
   useEffect(() => {
@@ -51,6 +56,131 @@ export function PdfViewer({
     window.addEventListener('resize', updateWidth);
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
+
+  // Normalize text for fuzzy matching (handles OCR variations)
+  const normalizeText = useCallback((text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/\s+/g, ' ')  // Normalize whitespace
+      .replace(/['']/g, "'") // Normalize quotes
+      .replace(/[""]/g, '"')
+      .replace(/—/g, '-')    // Normalize dashes
+      .replace(/–/g, '-')
+      .trim();
+  }, []);
+
+  // Highlight matching text in the text layer
+  const highlightTextInLayer = useCallback(() => {
+    if (!searchText || !pageWrapperRef.current) return;
+
+    const textLayer = pageWrapperRef.current.querySelector('.react-pdf__Page__textContent');
+    if (!textLayer) {
+      console.log('[PdfViewer] Text layer not found');
+      return;
+    }
+
+    // Clear previous highlights
+    const existingHighlights = textLayer.querySelectorAll('.citation-highlight');
+    existingHighlights.forEach(el => {
+      el.classList.remove('citation-highlight');
+      (el as HTMLElement).style.backgroundColor = '';
+    });
+
+    const spans = textLayer.querySelectorAll('span');
+    if (spans.length === 0) {
+      console.log('[PdfViewer] No text spans found in layer');
+      return;
+    }
+
+    // Build full page text and track span positions
+    const spanData: { span: Element; start: number; end: number; text: string }[] = [];
+    let fullText = '';
+
+    spans.forEach((span) => {
+      const text = span.textContent || '';
+      spanData.push({
+        span,
+        start: fullText.length,
+        end: fullText.length + text.length,
+        text
+      });
+      fullText += text;
+    });
+
+    // Normalize search text and page text
+    const normalizedSearch = normalizeText(searchText);
+    const normalizedPage = normalizeText(fullText);
+
+    // Find match in normalized text
+    const matchStart = normalizedPage.indexOf(normalizedSearch);
+
+    if (matchStart === -1) {
+      // Try progressively shorter substrings (first 80%, 60%, 40% of text)
+      const searchLengths = [0.8, 0.6, 0.4].map(p => Math.floor(normalizedSearch.length * p));
+
+      for (const len of searchLengths) {
+        if (len < 20) break; // Don't search for very short strings
+        const partialSearch = normalizedSearch.substring(0, len);
+        const partialMatch = normalizedPage.indexOf(partialSearch);
+
+        if (partialMatch !== -1) {
+          console.log(`[PdfViewer] Partial match found (${len}/${normalizedSearch.length} chars)`);
+          highlightSpansInRange(spanData, partialMatch, partialMatch + len);
+          scrollToHighlight();
+          return;
+        }
+      }
+
+      console.log('[PdfViewer] No text match found for:', searchText.substring(0, 50) + '...');
+      return;
+    }
+
+    console.log('[PdfViewer] Text match found at position:', matchStart);
+    highlightSpansInRange(spanData, matchStart, matchStart + normalizedSearch.length);
+    scrollToHighlight();
+  }, [searchText, normalizeText]);
+
+  // Helper to highlight spans that fall within a character range
+  const highlightSpansInRange = (
+    spanData: { span: Element; start: number; end: number; text: string }[],
+    rangeStart: number,
+    rangeEnd: number
+  ) => {
+    spanData.forEach(({ span, start, end }) => {
+      // Check if this span overlaps with our search range
+      const spanOverlaps = start < rangeEnd && end > rangeStart;
+
+      if (spanOverlaps) {
+        span.classList.add('citation-highlight');
+        (span as HTMLElement).style.backgroundColor = 'rgba(255, 213, 0, 0.5)';
+        (span as HTMLElement).style.borderRadius = '2px';
+      }
+    });
+  };
+
+  // Scroll to first highlighted element
+  const scrollToHighlight = () => {
+    setTimeout(() => {
+      const highlight = pageWrapperRef.current?.querySelector('.citation-highlight');
+      if (highlight) {
+        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
+  // Re-run highlighting when text layer is ready or search text changes
+  useEffect(() => {
+    if (textLayerReady && searchText) {
+      // Small delay to ensure text layer DOM is fully populated
+      const timeout = setTimeout(highlightTextInLayer, 150);
+      return () => clearTimeout(timeout);
+    }
+  }, [textLayerReady, searchText, highlightTextInLayer, pageNumber]);
+
+  // Reset text layer ready state when page changes
+  useEffect(() => {
+    setTextLayerReady(false);
+  }, [pageNumber]);
 
   const effectiveTotalPages = totalPages || numPages || 1;
 
@@ -94,18 +224,22 @@ export function PdfViewer({
       >
         {/* CRITICAL: Wrapper div for highlight positioning */}
         {/* The highlight overlay must be inside this relative container */}
-        <div className="relative inline-block">
+        <div ref={pageWrapperRef} className="relative inline-block">
           <Page
             pageNumber={pageNumber}
             width={containerWidth}
-            renderTextLayer={false}
+            renderTextLayer={true}
             renderAnnotationLayer={false}
             className="shadow-lg"
             loading={null}
+            onRenderSuccess={() => {
+              // Mark text layer as ready after a brief delay for DOM population
+              setTimeout(() => setTextLayerReady(true), 50);
+            }}
           />
 
-          {/* Highlight overlay - positioned relative to the Page */}
-          {highlightBbox && !loading && !error && (
+          {/* Fallback: Highlight overlay for bbox-based highlighting */}
+          {highlightBbox && !searchText && !loading && !error && (
             <div
               style={{
                 position: 'absolute',
