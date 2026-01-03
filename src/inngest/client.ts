@@ -32,6 +32,12 @@ type Events = {
       retryable: boolean;
     };
   };
+  "extraction.completed": {
+    data: {
+      documentId: string;
+      extractionId: string;
+    };
+  };
 };
 
 export const inngest = new Inngest({

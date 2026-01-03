@@ -1,0 +1,252 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IEP Extraction Schema",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["student", "dates", "goals"],
+  "properties": {
+    "student": {
+      "type": "object",
+      "description": "Student demographic information",
+      "x-extraction-hint": "Usually found in header or first page",
+      "required": ["name", "dateOfBirth", "grade"],
+      "properties": {
+        "name": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        },
+        "dateOfBirth": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string", "format": "date" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        },
+        "grade": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        },
+        "school": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        },
+        "district": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        }
+      }
+    },
+
+    "disability": {
+      "type": "object",
+      "description": "Primary and secondary disability categories",
+      "properties": {
+        "primary": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string",
+              "enum": [
+                "Specific Learning Disability",
+                "Speech or Language Impairment",
+                "Other Health Impairment",
+                "Autism",
+                "Emotional Disturbance",
+                "Intellectual Disability",
+                "Multiple Disabilities",
+                "Orthopedic Impairment",
+                "Traumatic Brain Injury",
+                "Visual Impairment",
+                "Hearing Impairment",
+                "Deaf-Blindness",
+                "Developmental Delay"
+              ]
+            },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        }
+      }
+    },
+
+    "dates": {
+      "type": "object",
+      "description": "Important IEP dates and timelines",
+      "properties": {
+        "iepStartDate": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string", "format": "date" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        },
+        "iepEndDate": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string", "format": "date" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        },
+        "annualReviewDate": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string", "format": "date" },
+            "evidence": { "$ref": "#/definitions/Evidence" }
+          }
+        }
+      }
+    },
+
+    "goals": {
+      "type": "array",
+      "description": "Annual goals and short-term objectives",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["goalText", "domain"],
+        "properties": {
+          "goalText": {
+            "type": "object",
+            "description": "Full text of the annual goal",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          },
+          "domain": {
+            "type": "object",
+            "description": "Goal category or subject area",
+            "properties": {
+              "value": {
+                "type": "string",
+                "enum": [
+                  "Reading/Literacy",
+                  "Mathematics",
+                  "Written Expression",
+                  "Communication/Speech",
+                  "Social/Emotional/Behavioral",
+                  "Adaptive/Daily Living",
+                  "Motor Skills",
+                  "Transition",
+                  "Other"
+                ]
+              },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          },
+          "baseline": {
+            "type": "object",
+            "description": "Current level of performance",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          },
+          "target": {
+            "type": "object",
+            "description": "Expected level of achievement",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          }
+        }
+      }
+    },
+
+    "services": {
+      "type": "array",
+      "description": "Special education and related services",
+      "items": {
+        "type": "object",
+        "properties": {
+          "serviceType": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          },
+          "frequency": {
+            "type": "object",
+            "description": "How often service is provided (e.g., '2 times per week')",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          },
+          "duration": {
+            "type": "object",
+            "description": "Length of each session (e.g., '30 minutes')",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          }
+        }
+      }
+    },
+
+    "accommodations": {
+      "type": "array",
+      "description": "Accommodations and modifications",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          },
+          "category": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "enum": ["Presentation", "Response", "Setting", "Timing/Scheduling"]
+              },
+              "evidence": { "$ref": "#/definitions/Evidence" }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "definitions": {
+    "Evidence": {
+      "type": "array",
+      "description": "Source evidence for extracted field",
+      "items": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "minimum": 1 },
+          "quote": { "type": "string" },
+          "bbox": {
+            "type": "object",
+            "properties": {
+              "x0": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y0": { "type": "number", "minimum": 0, "maximum": 1 },
+              "x1": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y1": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}
