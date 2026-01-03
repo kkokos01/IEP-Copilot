@@ -6,6 +6,7 @@ import { inngest } from "@/inngest/client";
 import { processDocument } from "@/inngest/functions/processDocument";
 import { generateFindings } from "@/inngest/functions/generateFindings";
 import { extractIepStructuredData } from "@/inngest/functions/extractIepStructuredData";
+import { validateIepExtraction } from "@/inngest/functions/validateIepExtraction";
 
 // Force Node.js runtime (required for Document AI and PDF processing)
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export const { GET, POST, PUT } = serve({
     processDocument,
     generateFindings,
     extractIepStructuredData,
+    validateIepExtraction,
   ],
 });
 

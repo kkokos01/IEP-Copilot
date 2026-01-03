@@ -6,18 +6,24 @@ import { getSupabaseClient } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
 import { PdfViewer } from '@/components/document/PdfViewer'
 import { EvidencePanel } from '@/components/document/EvidencePanel'
+import { IepDataPanel } from '@/components/document/IepDataPanel'
+import { ValidationIssuesPanel } from '@/components/document/ValidationIssuesPanel'
 
 type Document = Database['public']['Tables']['documents']['Row'] & {
   cases: { name: string; children: { name: string } }
 }
 type Finding = Database['public']['Tables']['findings']['Row']
 type Citation = Database['public']['Tables']['citations']['Row']
+type ExtractedIepData = Database['public']['Tables']['extracted_iep_data']['Row']
+type ValidationIssue = Database['public']['Tables']['validation_issues']['Row']
 
 export default function DocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const [user, setUser] = useState<any>(null)
   const [document, setDocument] = useState<Document | null>(null)
   const [findings, setFindings] = useState<Finding[]>([])
   const [citations, setCitations] = useState<Citation[]>([])
+  const [extractedData, setExtractedData] = useState<ExtractedIepData | null>(null)
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null)
   const [documentId, setDocumentId] = useState<string | null>(null)
@@ -32,7 +38,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   // Filter state
   const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false)
   // Mobile tab state
-  const [activeTab, setActiveTab] = useState<'findings' | 'document'>('findings')
+  const [activeTab, setActiveTab] = useState<'findings' | 'structured' | 'document'>('findings')
   const router = useRouter()
 
   // Handle async params
@@ -87,6 +93,27 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
       .eq('document_id', documentId)
 
     setCitations(citationsData || [])
+
+    // Load extracted IEP data
+    const { data: iepData } = await getSupabaseClient()
+      .from('extracted_iep_data')
+      .select('*')
+      .eq('document_id', documentId)
+      .single()
+
+    setExtractedData(iepData)
+
+    // Load validation issues if IEP data exists
+    if (iepData) {
+      const { data: issues } = await getSupabaseClient()
+        .from('validation_issues')
+        .select('*')
+        .eq('extracted_iep_data_id', iepData.id)
+        .order('severity', { ascending: true })
+        .order('created_at', { ascending: false })
+
+      setValidationIssues(issues || [])
+    }
 
     // Get signed URL for PDF viewing
     if (doc.storage_path) {
@@ -178,6 +205,18 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
           >
             Findings ({findings.length})
           </button>
+          {extractedData && (
+            <button
+              onClick={() => setActiveTab('structured')}
+              className={`flex-1 py-3 text-center text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'structured'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Structured
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('document')}
             className={`flex-1 py-3 text-center text-sm font-medium border-b-2 transition-colors ${
@@ -191,12 +230,12 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      {/* Two-Pane Content */}
+      {/* Two/Three-Pane Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Pane: Findings */}
         <div className={`
           ${activeTab === 'findings' ? 'block' : 'hidden'}
-          md:block w-full md:w-[35%] lg:w-[35%] border-r bg-white overflow-y-auto
+          md:block w-full ${extractedData ? 'md:w-[30%]' : 'md:w-[35%]'} border-r bg-white overflow-y-auto
         `}>
           <div className="p-4">
             {/* Partial Extraction Warning */}
@@ -366,10 +405,55 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
+        {/* Middle Pane: Structured IEP Data */}
+        {extractedData && (
+          <div className={`
+            ${activeTab === 'structured' ? 'block' : 'hidden'}
+            md:block w-full md:w-[30%] border-r bg-white overflow-y-auto
+          `}>
+            <div className="p-4 space-y-4">
+              {/* Validation Issues */}
+              <ValidationIssuesPanel
+                issues={validationIssues as any}
+                onIssueClick={(issue) => {
+                  // Could navigate to field in IEP data panel or jump to evidence
+                  console.log('Issue clicked:', issue)
+                }}
+                onStatusChange={async (issueId, newStatus) => {
+                  const { error } = await getSupabaseClient()
+                    .from('validation_issues')
+                    .update({ status: newStatus })
+                    .eq('id', issueId)
+
+                  if (!error) {
+                    setValidationIssues(prev =>
+                      prev.map(issue =>
+                        issue.id === issueId ? { ...issue, status: newStatus } : issue
+                      )
+                    )
+                  }
+                }}
+              />
+
+              {/* IEP Data */}
+              <IepDataPanel
+                data={extractedData.data as any}
+                onEvidenceClick={(evidence) => {
+                  setCurrentPage(evidence.page)
+                  if (evidence.bbox) {
+                    setHighlightBbox(evidence.bbox)
+                  }
+                  setActiveTab('document') // Switch to document view
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Right Pane: PDF Viewer */}
         <div className={`
           ${activeTab === 'document' ? 'flex' : 'hidden'}
-          md:flex w-full md:w-[65%] lg:w-[65%] flex-col bg-gray-100
+          md:flex w-full ${extractedData ? 'md:w-[40%]' : 'md:w-[65%]'} flex-col bg-gray-100
         `}>
           <div className="flex-1 overflow-hidden">
             {pdfUrl ? (

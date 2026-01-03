@@ -6,509 +6,928 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
   public: {
     Tables: {
-      children: {
+      audit_log: {
         Row: {
-          id: string
-          user_id: string
-          name: string
-          date_of_birth: string | null
-          district: string | null
-          school: string | null
-          grade: string | null
-          disability_categories: string[] | null
+          action: string
+          case_id: string | null
           created_at: string
-          updated_at: string
-          deleted_at: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          user_agent: string | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
-          date_of_birth?: string | null
-          district?: string | null
-          school?: string | null
-          grade?: string | null
-          disability_categories?: string[] | null
+          action: string
+          case_id?: string | null
           created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          user_agent?: string | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          date_of_birth?: string | null
-          district?: string | null
-          school?: string | null
-          grade?: string | null
-          disability_categories?: string[] | null
+          action?: string
+          case_id?: string | null
           created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          user_agent?: string | null
+          user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cases: {
         Row: {
-          id: string
           child_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
           name: string
           school_year: string | null
-          status: 'active' | 'archived'
-          created_at: string
+          status: string
           updated_at: string
-          deleted_at: string | null
         }
         Insert: {
-          id?: string
           child_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
           name: string
           school_year?: string | null
-          status?: 'active' | 'archived'
-          created_at?: string
+          status?: string
           updated_at?: string
-          deleted_at?: string | null
         }
         Update: {
-          id?: string
           child_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
           name?: string
           school_year?: string | null
-          status?: 'active' | 'archived'
-          created_at?: string
+          status?: string
           updated_at?: string
-          deleted_at?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "cases_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      documents: {
+      children: {
         Row: {
-          id: string
-          case_id: string
-          type: 'iep' | 'evaluation' | 'progress_report' | 'email' | 'meeting_notes' | 'prior_written_notice' | 'other'
-          source_filename: string
-          storage_path: string
-          mime_type: string
-          file_size_bytes: number | null
-          effective_date: string | null
-          meeting_date: string | null
-          status: 'uploaded' | 'processing' | 'extracted' | 'analyzing' | 'complete' | 'analysis_failed' | 'failed'
-          page_count: number | null
-          extractor: string
-          extractor_version: string | null
-          extraction_started_at: string | null
-          extraction_completed_at: string | null
-          error_message: string | null
-          error_details: Json | null
-          retry_count: number
-          is_partial_extraction: boolean
           created_at: string
-          updated_at: string
+          date_of_birth: string | null
           deleted_at: string | null
+          disability_categories: string[] | null
+          district: string | null
+          grade: string | null
+          id: string
+          name: string
+          school: string | null
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          case_id: string
-          type?: 'iep' | 'evaluation' | 'progress_report' | 'email' | 'meeting_notes' | 'prior_written_notice' | 'other'
-          source_filename: string
-          storage_path: string
-          mime_type?: string
-          file_size_bytes?: number | null
-          effective_date?: string | null
-          meeting_date?: string | null
-          status?: 'uploaded' | 'processing' | 'extracted' | 'analyzing' | 'complete' | 'analysis_failed' | 'failed'
-          page_count?: number | null
-          extractor?: string
-          extractor_version?: string | null
-          extraction_started_at?: string | null
-          extraction_completed_at?: string | null
-          error_message?: string | null
-          error_details?: Json | null
-          retry_count?: number
-          is_partial_extraction?: boolean
           created_at?: string
-          updated_at?: string
+          date_of_birth?: string | null
           deleted_at?: string | null
+          disability_categories?: string[] | null
+          district?: string | null
+          grade?: string | null
+          id?: string
+          name: string
+          school?: string | null
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          case_id?: string
-          type?: 'iep' | 'evaluation' | 'progress_report' | 'email' | 'meeting_notes' | 'prior_written_notice' | 'other'
-          source_filename?: string
-          storage_path?: string
-          mime_type?: string
-          file_size_bytes?: number | null
-          effective_date?: string | null
-          meeting_date?: string | null
-          status?: 'uploaded' | 'processing' | 'extracted' | 'analyzing' | 'complete' | 'analysis_failed' | 'failed'
-          page_count?: number | null
-          extractor?: string
-          extractor_version?: string | null
-          extraction_started_at?: string | null
-          extraction_completed_at?: string | null
-          error_message?: string | null
-          error_details?: Json | null
-          retry_count?: number
-          is_partial_extraction?: boolean
           created_at?: string
-          updated_at?: string
+          date_of_birth?: string | null
           deleted_at?: string | null
+          disability_categories?: string[] | null
+          district?: string | null
+          grade?: string | null
+          id?: string
+          name?: string
+          school?: string | null
+          updated_at?: string
+          user_id?: string
         }
+        Relationships: []
+      }
+      citations: {
+        Row: {
+          bbox: Json | null
+          created_at: string
+          document_id: string
+          finding_id: string
+          id: string
+          page_number: number
+          quote_text: string
+          quote_text_normalized: string | null
+          verification_method: string | null
+          verification_score: number | null
+          verification_status: Database["public"]["Enums"]["verification_status"]
+          verified_at: string | null
+        }
+        Insert: {
+          bbox?: Json | null
+          created_at?: string
+          document_id: string
+          finding_id: string
+          id?: string
+          page_number: number
+          quote_text: string
+          quote_text_normalized?: string | null
+          verification_method?: string | null
+          verification_score?: number | null
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+          verified_at?: string | null
+        }
+        Update: {
+          bbox?: Json | null
+          created_at?: string
+          document_id?: string
+          finding_id?: string
+          id?: string
+          page_number?: number
+          quote_text?: string
+          quote_text_normalized?: string | null
+          verification_method?: string | null
+          verification_score?: number | null
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citations_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "findings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_blocks: {
+        Row: {
+          bbox: Json | null
+          block_type: string
+          confidence: number | null
+          created_at: string
+          document_id: string
+          id: string
+          page_number: number
+          parent_block_id: string | null
+          reading_order: number | null
+          text: string
+          text_normalized: string | null
+        }
+        Insert: {
+          bbox?: Json | null
+          block_type: string
+          confidence?: number | null
+          created_at?: string
+          document_id: string
+          id?: string
+          page_number: number
+          parent_block_id?: string | null
+          reading_order?: number | null
+          text: string
+          text_normalized?: string | null
+        }
+        Update: {
+          bbox?: Json | null
+          block_type?: string
+          confidence?: number | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          page_number?: number
+          parent_block_id?: string | null
+          reading_order?: number | null
+          text?: string
+          text_normalized?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_blocks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_blocks_parent_block_id_fkey"
+            columns: ["parent_block_id"]
+            isOneToOne: false
+            referencedRelation: "document_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_pages: {
         Row: {
-          id: string
+          confidence: number | null
+          created_at: string
           document_id: string
+          id: string
+          image_height: number | null
+          image_storage_path: string | null
+          image_width: number | null
           page_number: number
           text: string
           text_normalized: string | null
           word_count: number | null
-          image_storage_path: string | null
-          image_width: number | null
-          image_height: number | null
-          confidence: number | null
-          created_at: string
         }
         Insert: {
-          id?: string
+          confidence?: number | null
+          created_at?: string
           document_id: string
+          id?: string
+          image_height?: number | null
+          image_storage_path?: string | null
+          image_width?: number | null
           page_number: number
           text: string
           text_normalized?: string | null
           word_count?: number | null
-          image_storage_path?: string | null
-          image_width?: number | null
-          image_height?: number | null
-          confidence?: number | null
-          created_at?: string
         }
         Update: {
-          id?: string
+          confidence?: number | null
+          created_at?: string
           document_id?: string
+          id?: string
+          image_height?: number | null
+          image_storage_path?: string | null
+          image_width?: number | null
           page_number?: number
           text?: string
           text_normalized?: string | null
           word_count?: number | null
-          image_storage_path?: string | null
-          image_width?: number | null
-          image_height?: number | null
-          confidence?: number | null
-          created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "document_pages_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      document_blocks: {
+      documents: {
         Row: {
-          id: string
-          document_id: string
-          page_number: number
-          block_type: 'paragraph' | 'heading' | 'list_item' | 'table' | 'table_cell' | 'header' | 'footer' | 'page_number' | 'other'
-          text: string
-          text_normalized: string | null
-          bbox: Json | null
-          reading_order: number | null
-          parent_block_id: string | null
-          confidence: number | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          document_id: string
-          page_number: number
-          block_type: 'paragraph' | 'heading' | 'list_item' | 'table' | 'table_cell' | 'header' | 'footer' | 'page_number' | 'other'
-          text: string
-          text_normalized?: string | null
-          bbox?: Json | null
-          reading_order?: number | null
-          parent_block_id?: string | null
-          confidence?: number | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          document_id?: string
-          page_number?: number
-          block_type?: 'paragraph' | 'heading' | 'list_item' | 'table' | 'table_cell' | 'header' | 'footer' | 'page_number' | 'other'
-          text?: string
-          text_normalized?: string | null
-          bbox?: Json | null
-          reading_order?: number | null
-          parent_block_id?: string | null
-          confidence?: number | null
-          created_at?: string
-        }
-      }
-      findings: {
-        Row: {
-          id: string
-          document_id: string
           case_id: string
-          created_by: 'ai' | 'user'
-          status: 'active' | 'needs_review' | 'dismissed' | 'addressed'
-          category: 'services' | 'goals' | 'accommodations' | 'baseline' | 'placement' | 'procedural' | 'timeline' | 'other'
-          title: string
-          summary: string
-          why_it_matters: string | null
-          questions_to_ask: string[]
-          confidence: number | null
-          model_version: string | null
-          needs_review_reason: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
           created_at: string
-          updated_at: string
           deleted_at: string | null
-        }
-        Insert: {
-          id?: string
-          document_id: string
-          case_id: string
-          created_by?: 'ai' | 'user'
-          status?: 'active' | 'needs_review' | 'dismissed' | 'addressed'
-          category?: 'services' | 'goals' | 'accommodations' | 'baseline' | 'placement' | 'procedural' | 'timeline' | 'other'
-          title: string
-          summary: string
-          why_it_matters?: string | null
-          questions_to_ask?: string[]
-          confidence?: number | null
-          model_version?: string | null
-          needs_review_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-        Update: {
-          id?: string
-          document_id?: string
-          case_id?: string
-          created_by?: 'ai' | 'user'
-          status?: 'active' | 'needs_review' | 'dismissed' | 'addressed'
-          category?: 'services' | 'goals' | 'accommodations' | 'baseline' | 'placement' | 'procedural' | 'timeline' | 'other'
-          title?: string
-          summary?: string
-          why_it_matters?: string | null
-          questions_to_ask?: string[]
-          confidence?: number | null
-          model_version?: string | null
-          needs_review_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-      }
-      citations: {
-        Row: {
+          effective_date: string | null
+          error_details: Json | null
+          error_message: string | null
+          extraction_completed_at: string | null
+          extraction_started_at: string | null
+          extractor: string
+          extractor_version: string | null
+          file_size_bytes: number | null
           id: string
-          finding_id: string
-          document_id: string
-          page_number: number
-          quote_text: string
-          quote_text_normalized: string | null
-          bbox: Json | null
-          verification_status: 'pending' | 'verified' | 'failed' | 'skipped'
-          verification_score: number | null
-          verified_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          finding_id: string
-          document_id: string
-          page_number: number
-          quote_text: string
-          quote_text_normalized?: string | null
-          bbox?: Json | null
-          verification_status?: 'pending' | 'verified' | 'failed' | 'skipped'
-          verification_score?: number | null
-          verified_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          finding_id?: string
-          document_id?: string
-          page_number?: number
-          quote_text?: string
-          quote_text_normalized?: string | null
-          bbox?: Json | null
-          verification_status?: 'pending' | 'verified' | 'failed' | 'skipped'
-          verification_score?: number | null
-          verified_at?: string | null
-          created_at?: string
-        }
-      }
-      requests: {
-        Row: {
-          id: string
-          case_id: string
-          type: 'initial_evaluation' | 'reevaluation' | 'independent_evaluation' | 'progress_data' | 'meeting_request' | 'written_explanation' | 'records_request' | 'other'
-          status: 'draft' | 'ready' | 'sent' | 'awaiting_response' | 'responded' | 'escalated' | 'closed'
-          drafted_at: string
-          sent_at: string | null
-          sent_via: 'email' | 'mail' | 'hand_delivered' | 'other' | null
-          due_date: string | null
-          response_received_at: string | null
-          subject: string | null
-          body: string | null
-          generated_document_id: string | null
-          related_finding_ids: string[]
-          notes: string | null
-          created_at: string
+          is_partial_extraction: boolean
+          meeting_date: string | null
+          mime_type: string
+          page_count: number | null
+          retry_count: number
+          source_filename: string
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          type: Database["public"]["Enums"]["document_type"]
           updated_at: string
-          deleted_at: string | null
         }
         Insert: {
-          id?: string
           case_id: string
-          type: 'initial_evaluation' | 'reevaluation' | 'independent_evaluation' | 'progress_data' | 'meeting_request' | 'written_explanation' | 'records_request' | 'other'
-          status?: 'draft' | 'ready' | 'sent' | 'awaiting_response' | 'responded' | 'escalated' | 'closed'
-          drafted_at?: string
-          sent_at?: string | null
-          sent_via?: 'email' | 'mail' | 'hand_delivered' | 'other' | null
-          due_date?: string | null
-          response_received_at?: string | null
-          subject?: string | null
-          body?: string | null
-          generated_document_id?: string | null
-          related_finding_ids?: string[]
-          notes?: string | null
           created_at?: string
-          updated_at?: string
           deleted_at?: string | null
+          effective_date?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          extraction_completed_at?: string | null
+          extraction_started_at?: string | null
+          extractor?: string
+          extractor_version?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          is_partial_extraction?: boolean
+          meeting_date?: string | null
+          mime_type?: string
+          page_count?: number | null
+          retry_count?: number
+          source_filename: string
+          status?: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          type?: Database["public"]["Enums"]["document_type"]
+          updated_at?: string
         }
         Update: {
-          id?: string
           case_id?: string
-          type?: 'initial_evaluation' | 'reevaluation' | 'independent_evaluation' | 'progress_data' | 'meeting_request' | 'written_explanation' | 'records_request' | 'other'
-          status?: 'draft' | 'ready' | 'sent' | 'awaiting_response' | 'responded' | 'escalated' | 'closed'
-          drafted_at?: string
-          sent_at?: string | null
-          sent_via?: 'email' | 'mail' | 'hand_delivered' | 'other' | null
-          due_date?: string | null
-          response_received_at?: string | null
-          subject?: string | null
-          body?: string | null
-          generated_document_id?: string | null
-          related_finding_ids?: string[]
-          notes?: string | null
           created_at?: string
-          updated_at?: string
           deleted_at?: string | null
+          effective_date?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          extraction_completed_at?: string | null
+          extraction_started_at?: string | null
+          extractor?: string
+          extractor_version?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          is_partial_extraction?: boolean
+          meeting_date?: string | null
+          mime_type?: string
+          page_count?: number | null
+          retry_count?: number
+          source_filename?: string
+          status?: Database["public"]["Enums"]["document_status"]
+          storage_path?: string
+          type?: Database["public"]["Enums"]["document_type"]
+          updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
-          id: string
+          attendees: string[] | null
           case_id: string
-          type: 'iep_meeting' | 'eligibility_meeting' | 'manifestation_meeting' | 'phone_call' | 'email' | 'deadline' | 'other'
+          created_at: string
+          deleted_at: string | null
+          duration_minutes: number | null
           event_date: string
           event_time: string | null
-          duration_minutes: number | null
-          title: string
+          id: string
           location: string | null
-          attendees: string[] | null
           notes: string | null
           recap_document_id: string | null
-          recap_status: 'pending' | 'draft' | 'sent' | null
+          recap_status: string | null
           reminder_sent_at: string | null
-          created_at: string
+          title: string
+          type: string
           updated_at: string
-          deleted_at: string | null
         }
         Insert: {
-          id?: string
+          attendees?: string[] | null
           case_id: string
-          type: 'iep_meeting' | 'eligibility_meeting' | 'manifestation_meeting' | 'phone_call' | 'email' | 'deadline' | 'other'
+          created_at?: string
+          deleted_at?: string | null
+          duration_minutes?: number | null
           event_date: string
           event_time?: string | null
-          duration_minutes?: number | null
-          title: string
+          id?: string
           location?: string | null
-          attendees?: string[] | null
           notes?: string | null
           recap_document_id?: string | null
-          recap_status?: 'pending' | 'draft' | 'sent' | null
+          recap_status?: string | null
           reminder_sent_at?: string | null
-          created_at?: string
+          title: string
+          type: string
           updated_at?: string
-          deleted_at?: string | null
         }
         Update: {
-          id?: string
+          attendees?: string[] | null
           case_id?: string
-          type?: 'iep_meeting' | 'eligibility_meeting' | 'manifestation_meeting' | 'phone_call' | 'email' | 'deadline' | 'other'
+          created_at?: string
+          deleted_at?: string | null
+          duration_minutes?: number | null
           event_date?: string
           event_time?: string | null
-          duration_minutes?: number | null
-          title?: string
+          id?: string
           location?: string | null
-          attendees?: string[] | null
           notes?: string | null
           recap_document_id?: string | null
-          recap_status?: 'pending' | 'draft' | 'sent' | null
+          recap_status?: string | null
           reminder_sent_at?: string | null
-          created_at?: string
+          title?: string
+          type?: string
           updated_at?: string
-          deleted_at?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_recap_document_id_fkey"
+            columns: ["recap_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      audit_log: {
+      extracted_iep_data: {
         Row: {
-          id: string
-          user_id: string
-          entity_type: string
-          entity_id: string | null
-          case_id: string | null
-          action: string
-          metadata: Json
-          ip_address: string | null
-          user_agent: string | null
           created_at: string
+          data: Json
+          document_id: string
+          extracted_at: string
+          extraction_prompt_version: string | null
+          id: string
+          model_used: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          schema_version: string
+          search_vector: unknown
+          status: string
+          updated_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          entity_type: string
-          entity_id?: string | null
-          case_id?: string | null
-          action: string
-          metadata?: Json
-          ip_address?: string | null
-          user_agent?: string | null
           created_at?: string
+          data: Json
+          document_id: string
+          extracted_at?: string
+          extraction_prompt_version?: string | null
+          id?: string
+          model_used: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schema_version?: string
+          search_vector?: unknown
+          status?: string
+          updated_at?: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          entity_type?: string
-          entity_id?: string | null
-          case_id?: string | null
-          action?: string
-          metadata?: Json
-          ip_address?: string | null
-          user_agent?: string | null
           created_at?: string
+          data?: Json
+          document_id?: string
+          extracted_at?: string
+          extraction_prompt_version?: string | null
+          id?: string
+          model_used?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schema_version?: string
+          search_vector?: unknown
+          status?: string
+          updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "extracted_iep_data_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      findings: {
+        Row: {
+          case_id: string
+          category: Database["public"]["Enums"]["finding_category"]
+          confidence: number | null
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          document_id: string
+          id: string
+          model_version: string | null
+          needs_review_reason: string | null
+          questions_to_ask: string[]
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          summary: string
+          title: string
+          updated_at: string
+          why_it_matters: string | null
+        }
+        Insert: {
+          case_id: string
+          category?: Database["public"]["Enums"]["finding_category"]
+          confidence?: number | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          document_id: string
+          id?: string
+          model_version?: string | null
+          needs_review_reason?: string | null
+          questions_to_ask?: string[]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          summary: string
+          title: string
+          updated_at?: string
+          why_it_matters?: string | null
+        }
+        Update: {
+          case_id?: string
+          category?: Database["public"]["Enums"]["finding_category"]
+          confidence?: number | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          document_id?: string
+          id?: string
+          model_version?: string | null
+          needs_review_reason?: string | null
+          questions_to_ask?: string[]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+          why_it_matters?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "findings_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "findings_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requests: {
+        Row: {
+          body: string | null
+          case_id: string
+          created_at: string
+          deleted_at: string | null
+          drafted_at: string
+          due_date: string | null
+          generated_document_id: string | null
+          id: string
+          notes: string | null
+          related_finding_ids: string[]
+          response_received_at: string | null
+          sent_at: string | null
+          sent_via: string | null
+          status: string
+          subject: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          case_id: string
+          created_at?: string
+          deleted_at?: string | null
+          drafted_at?: string
+          due_date?: string | null
+          generated_document_id?: string | null
+          id?: string
+          notes?: string | null
+          related_finding_ids?: string[]
+          response_received_at?: string | null
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string
+          subject?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          case_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          drafted_at?: string
+          due_date?: string | null
+          generated_document_id?: string | null
+          id?: string
+          notes?: string | null
+          related_finding_ids?: string[]
+          response_received_at?: string | null
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string
+          subject?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requests_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requests_generated_document_id_fkey"
+            columns: ["generated_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_issues: {
+        Row: {
+          category: string
+          created_at: string
+          dismissal_reason: string | null
+          dismissed_at: string | null
+          dismissed_by: string | null
+          extracted_iep_data_id: string
+          field_path: string | null
+          id: string
+          message: string
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+          validator_name: string
+          validator_version: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          dismissal_reason?: string | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          extracted_iep_data_id: string
+          field_path?: string | null
+          id?: string
+          message: string
+          severity: string
+          status?: string
+          title: string
+          updated_at?: string
+          validator_name: string
+          validator_version?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          dismissal_reason?: string | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          extracted_iep_data_id?: string
+          field_path?: string | null
+          id?: string
+          message?: string
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          validator_name?: string
+          validator_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_issues_extracted_iep_data_id_fkey"
+            columns: ["extracted_iep_data_id"]
+            isOneToOne: false
+            referencedRelation: "extracted_iep_data"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_owns_case: { Args: { p_case_id: string }; Returns: boolean }
+      user_owns_document: { Args: { p_document_id: string }; Returns: boolean }
     }
     Enums: {
-      document_type: 'iep' | 'evaluation' | 'progress_report' | 'email' | 'meeting_notes' | 'prior_written_notice' | 'other'
-      document_status: 'uploaded' | 'processing' | 'extracted' | 'analyzing' | 'complete' | 'analysis_failed' | 'failed'
-      finding_category: 'services' | 'goals' | 'accommodations' | 'baseline' | 'placement' | 'procedural' | 'timeline' | 'other'
-      verification_status: 'pending' | 'verified' | 'failed' | 'skipped'
+      document_status:
+        | "uploaded"
+        | "processing"
+        | "extracted"
+        | "analyzing"
+        | "complete"
+        | "analysis_failed"
+        | "failed"
+      document_type:
+        | "iep"
+        | "evaluation"
+        | "progress_report"
+        | "email"
+        | "meeting_notes"
+        | "prior_written_notice"
+        | "other"
+      finding_category:
+        | "services"
+        | "goals"
+        | "accommodations"
+        | "baseline"
+        | "placement"
+        | "procedural"
+        | "timeline"
+        | "other"
+      verification_status: "pending" | "verified" | "failed" | "skipped"
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      document_status: [
+        "uploaded",
+        "processing",
+        "extracted",
+        "analyzing",
+        "complete",
+        "analysis_failed",
+        "failed",
+      ],
+      document_type: [
+        "iep",
+        "evaluation",
+        "progress_report",
+        "email",
+        "meeting_notes",
+        "prior_written_notice",
+        "other",
+      ],
+      finding_category: [
+        "services",
+        "goals",
+        "accommodations",
+        "baseline",
+        "placement",
+        "procedural",
+        "timeline",
+        "other",
+      ],
+      verification_status: ["pending", "verified", "failed", "skipped"],
+    },
+  },
+} as const
