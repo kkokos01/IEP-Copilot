@@ -101,6 +101,12 @@ export default function DashboardPage() {
               <h1 className="text-xl font-semibold">IEP Copilot</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/dashboard/analytics')}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                📊 Analytics
+              </button>
               <span className="text-sm text-gray-600">{user?.email}</span>
               <button
                 onClick={handleLogout}
