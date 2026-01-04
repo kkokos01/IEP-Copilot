@@ -199,6 +199,8 @@ CREATE POLICY "documents_policy" ON public.documents FOR ALL
 
 ## API Patterns
 
+> **📖 See Also:** [API_STANDARDS.md](./API_STANDARDS.md) - Comprehensive guide for server-side API route development with standards, patterns, and examples.
+
 ### Authentication & User Verification
 
 **Pattern:**

@@ -4,14 +4,15 @@
 
 **IEP Copilot** is an AI-powered platform that helps parents and advocates analyze special education documents with verified citations.
 
-**Status**: ✅ FUNCTIONAL MVP (v3.4) - End-to-end document processing with citation highlighting!
-**Last Updated**: 2026-01-01
-**Stable Commit**: `4b2f916` - Client-side PDF text highlighting for citations
-**Current Focus**: Fix remaining edge cases in citation highlighting  
+**Status**: ✅ FUNCTIONAL MVP (v3.5) - Full document management + Analytics dashboard!
+**Last Updated**: 2026-01-03
+**Stable Commit**: `5384c29` - Analytics dashboard + Document management features
+**Current Focus**: User testing and feedback iteration  
 
 ## Quick Links
 - [📋 TODO.md](./TODO.md) - Current sprint focus and roadmap
-- [🏗️ ARCHITECTURE.md](./ARCHITECTURE.md) - Technical architecture and design
+- [🏗️ ARCHITECTURE.md](../ARCHITECTURE.md) - Technical architecture and design
+- [🔧 API_STANDARDS.md](../API_STANDARDS.md) - Server-side API route patterns and best practices
 - [🤖 CONTEXT.md](./CONTEXT.md) - AI assistant guidelines and preferences
 - [✅ DECISIONS.md](./DECISIONS.md) - Architecture decision records
 - [⚡ PROMPTS.md](./PROMPTS.md) - Reusable prompts for common tasks
@@ -38,6 +39,9 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - ✅ Partial extraction tracking and recovery
 - ✅ Automated database migrations via GitHub Actions
 - ✅ PDF citation highlighting with client-side text search (mostly working)
+- ✅ **Analytics Dashboard** - Document statistics, validation tracking, IEP metrics, compliance monitoring
+- ✅ **Document Management** - Rename, delete, recategorize with individual and bulk operations
+- ✅ **API Standardization** - Consistent patterns across all server-side routes with comprehensive documentation
 
 ## Key Decisions Made
 
