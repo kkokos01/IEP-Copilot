@@ -336,7 +336,7 @@ export async function GET(
       }, { status: 404 });
     }
 
-    const childData = ieps[0]?.cases?.[0]?.children?.[0];
+    const childData = (ieps[0] as any)?.cases?.children;
     if (childData?.user_id !== user.id) {
       return NextResponse.json({
         error: 'Child not found',
