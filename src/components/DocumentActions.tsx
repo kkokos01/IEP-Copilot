@@ -7,8 +7,8 @@ interface Document {
   id: string;
   source_filename: string;
   type: string;
-  effective_date?: string;
-  meeting_date?: string;
+  effective_date?: string | null;
+  meeting_date?: string | null;
   storage_path: string;
 }
 
