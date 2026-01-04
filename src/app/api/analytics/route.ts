@@ -41,9 +41,20 @@ export async function GET(request: NextRequest) {
       .select('id, child_id, name')
       .in('child_id', childIds);
 
-    if (casesError || !cases) {
+    if (casesError) {
       console.error('Failed to fetch cases:', casesError);
-      return NextResponse.json({ error: 'Failed to fetch cases' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to fetch cases', details: casesError.message }, { status: 500 });
+    }
+
+    // If no cases exist, return empty analytics
+    if (!cases || cases.length === 0) {
+      console.log('User has children but no cases');
+      return NextResponse.json({
+        overview: { totalDocuments: 0, totalIEPs: 0, processedDocuments: 0, failedDocuments: 0, processingDocuments: 0, structuredExtractions: 0 },
+        validation: { totalIssues: 0, errorCount: 0, warningCount: 0, infoCount: 0, fixedCount: 0, issuesByCategory: {}, issuesBySeverity: { error: 0, warning: 0, info: 0 } },
+        iepData: { totalGoals: 0, goalsByDomain: {}, totalServices: 0, servicesByType: {}, totalAccommodations: 0, studentsWithIEPs: 0, averageGoalsPerIEP: 0, averageServicesPerIEP: 0 },
+        compliance: { overdueReviews: 0, longDurationIEPs: 0, missingBaselines: 0, unmeasurableGoals: 0 }
+      });
     }
 
     const caseIds = cases.map(c => c.id);
@@ -54,9 +65,20 @@ export async function GET(request: NextRequest) {
       .select('id, type, status, created_at, page_count, is_partial_extraction, metadata, case_id')
       .in('case_id', caseIds);
 
-    if (docsError || !documents) {
+    if (docsError) {
       console.error('Failed to fetch documents:', docsError);
-      return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to fetch documents', details: docsError.message }, { status: 500 });
+    }
+
+    // If no documents exist, return empty analytics
+    if (!documents || documents.length === 0) {
+      console.log('User has cases but no documents');
+      return NextResponse.json({
+        overview: { totalDocuments: 0, totalIEPs: 0, processedDocuments: 0, failedDocuments: 0, processingDocuments: 0, structuredExtractions: 0 },
+        validation: { totalIssues: 0, errorCount: 0, warningCount: 0, infoCount: 0, fixedCount: 0, issuesByCategory: {}, issuesBySeverity: { error: 0, warning: 0, info: 0 } },
+        iepData: { totalGoals: 0, goalsByDomain: {}, totalServices: 0, servicesByType: {}, totalAccommodations: 0, studentsWithIEPs: 0, averageGoalsPerIEP: 0, averageServicesPerIEP: 0 },
+        compliance: { overdueReviews: 0, longDurationIEPs: 0, missingBaselines: 0, unmeasurableGoals: 0 }
+      });
     }
 
     // Step 4: Get extracted IEP data for these documents
@@ -194,8 +216,14 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Analytics error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error stack:', error?.stack);
+    console.error('Error message:', error?.message);
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error?.message,
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+    }, { status: 500 });
   }
 }
