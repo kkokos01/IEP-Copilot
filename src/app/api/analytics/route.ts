@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin, getSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,14 +10,14 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token);
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all documents for user's children
-    const { data: documents } = await supabase
+    // Get all documents for user's children (RLS automatically filters by user)
+    const { data: documents, error: docsError } = await getSupabaseClient()
       .from('documents')
       .select(`
         id,
@@ -40,23 +35,23 @@ export async function GET(request: NextRequest) {
             user_id
           )
         )
-      `)
-      .eq('cases.children.user_id', user.id);
+      `);
 
-    if (!documents) {
+    if (docsError || !documents) {
+      console.error('Failed to fetch documents:', docsError);
       return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 });
     }
 
     // Get extracted IEP data for these documents
     const documentIds = documents.map(d => d.id);
-    const { data: extractions } = await supabase
+    const { data: extractions } = await getSupabaseClient()
       .from('extracted_iep_data')
       .select('id, document_id, data, extracted_at')
       .in('document_id', documentIds);
 
     // Get validation issues for extractions
     const extractionIds = extractions?.map(e => e.id) || [];
-    const { data: issues } = await supabase
+    const { data: issues } = await getSupabaseClient()
       .from('validation_issues')
       .select('severity, category, status, extracted_iep_data_id')
       .in('extracted_iep_data_id', extractionIds);
