@@ -1,6 +1,34 @@
 # Test Documents
 
-This directory contains real-world IEP documents for comprehensive testing of the document processing pipeline.
+This directory contains test data systems for comprehensive testing of the document processing pipeline.
+
+## Test Data Systems
+
+### 🎯 Recommended: Comprehensive Test System
+**File:** [`COMPREHENSIVE_TESTING.md`](./COMPREHENSIVE_TESTING.md)
+
+Complete educational records for 5 students with 35+ documents:
+- IEP Documents
+- Progress Reports (quarterly tracking)
+- Evaluation Reports (psychoeducational, speech, OT, PT)
+
+**Use this for:**
+- Testing progress tracking over time
+- Testing correlation between assessments and outcomes
+- Analytics dashboard with longitudinal data
+- Complete end-to-end pipeline testing
+
+### 📦 Batch IEP Testing
+**File:** [`BATCH_TESTING.md`](./BATCH_TESTING.md)
+
+Simpler batch system with 6 students and 15 IEP documents only.
+
+**Use this for:**
+- Quick testing of IEP extraction
+- Testing compliance validation
+- Faster test data generation (~5 minutes vs 10-15 minutes)
+
+---
 
 ## ⚠️ IMPORTANT: Privacy & Security
 
@@ -17,105 +45,52 @@ This folder is included in `.gitignore` to prevent accidental commits.
 
 ## Directory Structure
 
-### `/scanned/`
-**Purpose:** Test OCR accuracy and text normalization
+### `/generated/batch/`
+**Purpose:** Generated synthetic IEP documents from batch testing system
 
-Documents to include:
-- Scanned PDFs with varying quality
-- Documents with OCR artifacts (l/1, O/0 confusion)
-- Low-resolution scans
-- Grayscale vs. color scans
+### `/generated/comprehensive/`
+**Purpose:** Generated comprehensive educational records (IEPs + Progress Reports + Evaluations)
 
-**Expected challenges:**
-- Character recognition errors
-- Ligature handling (fi, fl, ffi)
-- Smart quotes vs. straight quotes
-- Encoding issues
+### `/real-samples/` (if you add real documents)
+**Purpose:** Real-world IEP samples for testing edge cases
 
----
-
-### `/multi-column/`
-**Purpose:** Test layout detection and reading order
-
-Documents to include:
-- Two-column layouts
-- Three-column layouts
-- Mixed single/multi-column pages
-- Nested columns
-
-**Expected challenges:**
-- Incorrect reading order
-- Text blocks merged across columns
-- Citation bbox calculation spanning columns
+**Required subdirectories:**
+- `scanned/` - Test OCR accuracy and text normalization
+- `multi-column/` - Test layout detection and reading order
+- `tables/` - Test table extraction and structure
+- `handwritten/` - Test handling of handwritten content
+- `poor-quality/` - Test error handling and partial extraction
+- `large-documents/` - Test performance and timeout handling
 
 ---
 
-### `/tables/`
-**Purpose:** Test table extraction and structure
+## Getting Started
 
-Documents to include:
-- Service delivery tables (frequency, duration, location)
-- Goal tracking tables
-- Accommodation lists in table format
-- Complex nested tables
+### Quick Start - Comprehensive System (Recommended)
 
-**Expected challenges:**
-- Table cells merged incorrectly
-- Header rows not detected
-- Spanning cells causing layout issues
+```bash
+# Generate all documents (~10-15 minutes)
+npx tsx scripts/generate-comprehensive-batch.ts
 
----
+# Upload to test account
+npx tsx scripts/upload-test-batch.ts
+```
 
-### `/handwritten/`
-**Purpose:** Test handling of handwritten content
+### Quick Start - Batch IEPs Only (Faster)
 
-Documents to include:
-- IEPs with handwritten notes
-- Progress reports with handwritten comments
-- Meeting notes with annotations
-- Mixed typed/handwritten documents
+```bash
+# Generate just IEPs (~5 minutes)
+npx tsx scripts/generate-test-batch.ts
 
-**Expected challenges:**
-- OCR may fail on handwritten sections
-- Need to gracefully handle unextractable text
-- User messaging about partial extraction
+# Upload
+npx tsx scripts/upload-test-batch.ts
+```
 
 ---
 
-### `/poor-quality/`
-**Purpose:** Test error handling and partial extraction
+## Adding Real Test Documents
 
-Documents to include:
-- Low-resolution scans (<150 DPI)
-- Faded or light text
-- Skewed/rotated pages
-- Stained or damaged documents
-
-**Expected challenges:**
-- Low OCR confidence scores
-- Partial extraction failures
-- Citation verification failures
-- Need for clear user feedback
-
----
-
-### `/large-documents/`
-**Purpose:** Test performance and timeout handling
-
-Documents to include:
-- Full IEP with all evaluations (50-100+ pages)
-- Complete case files
-- Multi-year progress reports
-
-**Expected challenges:**
-- Processing timeouts
-- Batching logic
-- Memory usage
-- Checkpoint/resume functionality
-
----
-
-## Adding Test Documents
+If you need to test with real IEP documents:
 
 ### Step 1: Anonymize
 Use a PDF editor to redact all PII before adding documents:
@@ -124,6 +99,11 @@ Use a PDF editor to redact all PII before adding documents:
 - Replace with placeholders: "[STUDENT NAME]", "[SCHOOL NAME]"
 
 ### Step 2: Categorize
+Create the subdirectories if needed:
+```bash
+mkdir -p test-docs/real-samples/{scanned,multi-column,tables,handwritten,poor-quality,large-documents}
+```
+
 Place the document in the most relevant subdirectory based on its primary testing purpose.
 
 ### Step 3: Name Descriptively
@@ -133,37 +113,6 @@ Examples:
 - `scanned-low-quality-15.pdf`
 - `tables-service-delivery-complex-3.pdf`
 - `large-full-iep-with-evals-87.pdf`
-
-### Step 4: Document Expectations
-Add an entry to `test-expectations.md` (see below) with:
-- Filename
-- What you're testing
-- Known issues to expect
-- Success criteria
-
----
-
-## Test Expectations
-
-Create a `test-expectations.md` file alongside this README with entries like:
-
-```markdown
-## scanned-low-quality-15.pdf
-- **Testing**: OCR accuracy on low-resolution scans
-- **Expected issues**: Some character confusion (l/1, O/0)
-- **Success criteria**:
-  - ✅ All pages extracted
-  - ✅ >80% citation verification success
-  - ✅ Fuzzy matching catches OCR errors
-
-## tables-service-delivery-complex-3.pdf
-- **Testing**: Complex nested table extraction
-- **Expected issues**: Some table cells may merge incorrectly
-- **Success criteria**:
-  - ✅ Service hours extracted correctly
-  - ✅ Table structure mostly preserved
-  - ✅ Citations reference correct table cells
-```
 
 ---
 
@@ -180,34 +129,13 @@ open http://localhost:8288
 ```
 
 ### Smoke Test Integration
-The smoke test script will be updated to accept a file path parameter:
-
 ```bash
 # Test with specific document
-npm run smoke-test -- --file=test-docs/scanned/low-quality-15.pdf
+npm run smoke-test -- --file=test-docs/generated/batch/emma-martinez-2024.pdf
 
 # Test with all documents in a category
-npm run smoke-test -- --dir=test-docs/scanned/
+npm run smoke-test -- --dir=test-docs/generated/batch/
 ```
-
----
-
-## What Documents Do We Need?
-
-### High Priority (Need ASAP)
-- [ ] At least 2 scanned IEPs with OCR artifacts
-- [ ] 1 document with service delivery tables
-- [ ] 1 large document (50+ pages) for timeout testing
-
-### Medium Priority (Nice to Have)
-- [ ] Multi-column layout document
-- [ ] Poor quality scan for error handling testing
-- [ ] Document with handwritten notes
-
-### Low Priority (Future Testing)
-- [ ] Non-English documents (Spanish IEPs)
-- [ ] Heavily redacted documents
-- [ ] Documents with embedded images
 
 ---
 
@@ -225,9 +153,6 @@ npm run smoke-test -- --dir=test-docs/scanned/
 
 ## Questions?
 
-If you're unsure whether a document is appropriate for testing:
-1. Err on the side of caution - don't add it
-2. Further anonymize if needed
-3. Consider creating a synthetic document instead
-
-For synthetic document generation, see: `/scripts/create-test-pdf.ts`
+- For comprehensive test system: See [`COMPREHENSIVE_TESTING.md`](./COMPREHENSIVE_TESTING.md)
+- For batch IEP testing: See [`BATCH_TESTING.md`](./BATCH_TESTING.md)
+- For generating custom synthetic documents: See `/scripts/generate-test-iep.ts`

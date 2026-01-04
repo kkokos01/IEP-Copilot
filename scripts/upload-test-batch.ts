@@ -87,7 +87,7 @@ async function main() {
       email_confirm: true,
     });
 
-    if (authError && !authError.message.includes('already registered')) {
+    if (authError && !authError.message.includes('already registered') && authError.code !== 'email_exists') {
       throw authError;
     }
 
@@ -99,6 +99,13 @@ async function main() {
     }
 
     console.log(`✅ User: ${userId}`);
+
+    // For existing users, update password to ensure we can sign in
+    if (authError?.code === 'email_exists') {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: TEST_PASSWORD,
+      });
+    }
 
     // Sign in
     const { data: sessionData } = await supabase.auth.signInWithPassword({

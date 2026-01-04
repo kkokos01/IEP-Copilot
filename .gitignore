@@ -57,3 +57,22 @@ test-docs/**/*.doc
 scripts/check-databases.js
 scripts/fix-databases.js
 scripts/verify-column.js
+
+# GCP Service Account Keys (CRITICAL - never commit)
+**/iep-copilot-prod-*.json
+**/*service-account*.json
+**/*serviceaccount*.json
+**/*.REVOKED
+
+# Data archive (sensitive files moved here)
+reference/data-archive/
+
+# Production logs and sensitive data
+logs_result.json
+**/logs_result.json
+
+# Large data files (test data should be in test-docs/)
+data.json
+parsedTexasResults.json
+reference/data.json
+reference/parsedTexasResults.json

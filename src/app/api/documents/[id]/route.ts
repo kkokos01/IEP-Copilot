@@ -84,7 +84,7 @@ const VALID_DOCUMENT_TYPES = [
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate
@@ -100,7 +100,7 @@ export async function GET(
       return errorResponse(ERRORS.AUTH_INVALID);
     }
 
-    const documentId = params.id;
+    const { id: documentId } = await params;
 
     // Get document with ownership verification via RLS
     const { data: document, error: docError } = await getSupabaseClient()
@@ -155,7 +155,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate
@@ -171,7 +171,7 @@ export async function PATCH(
       return errorResponse(ERRORS.AUTH_INVALID);
     }
 
-    const documentId = params.id;
+    const { id: documentId } = await params;
     const body = await request.json();
 
     // Validate updates
@@ -294,7 +294,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate
@@ -310,7 +310,7 @@ export async function DELETE(
       return errorResponse(ERRORS.AUTH_INVALID);
     }
 
-    const documentId = params.id;
+    const { id: documentId } = await params;
 
     // Get document for storage cleanup and audit log
     const { data: document, error: docError } = await getSupabaseClient()
