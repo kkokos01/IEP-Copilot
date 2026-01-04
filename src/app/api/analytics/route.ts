@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     // Step 3: Get documents for those cases
     const { data: documents, error: docsError } = await getSupabaseAdmin()
       .from('documents')
-      .select('id, type, status, created_at, page_count, is_partial_extraction, metadata, case_id')
+      .select('id, type, status, created_at, page_count, is_partial_extraction, case_id')
       .in('case_id', caseIds);
 
     if (docsError) {
