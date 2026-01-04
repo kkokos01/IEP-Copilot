@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
+import DocumentActions from '@/components/DocumentActions'
+import BulkDocumentActions from '@/components/BulkDocumentActions'
 
 type Document = Database['public']['Tables']['documents']['Row']
 type Case = Database['public']['Tables']['cases']['Row'] & {
@@ -19,6 +21,7 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentType, setDocumentType] = useState<string>('other')
   const [caseId, setCaseId] = useState<string | null>(null)
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   // Handle async params
@@ -150,6 +153,26 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
     router.push('/')
   }
 
+  const handleSelectDocument = (docId: string, checked: boolean) => {
+    setSelectedDocuments(prev => {
+      const newSet = new Set(prev)
+      if (checked) {
+        newSet.add(docId)
+      } else {
+        newSet.delete(docId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedDocuments(new Set(documents.map(d => d.id)))
+    } else {
+      setSelectedDocuments(new Set())
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
@@ -234,16 +257,46 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
 
           {/* Documents List */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium mb-4">Documents</h2>
-            
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium">Documents</h2>
+              {documents.length > 0 && (
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={selectedDocuments.size === documents.length && documents.length > 0}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  Select All
+                </label>
+              )}
+            </div>
+
+            {/* Bulk Actions Bar */}
+            <BulkDocumentActions
+              selectedDocuments={documents.filter(d => selectedDocuments.has(d.id))}
+              onClearSelection={() => setSelectedDocuments(new Set())}
+              onComplete={() => {
+                if (caseId) {
+                  loadCaseData(caseId)
+                }
+              }}
+            />
+
             {documents.length === 0 ? (
               <p className="text-gray-500">No documents uploaded yet</p>
             ) : (
               <div className="space-y-4">
                 {documents.map((doc) => (
                   <div key={doc.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
+                    <div className="flex justify-between items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedDocuments.has(doc.id)}
+                        onChange={(e) => handleSelectDocument(doc.id, e.target.checked)}
+                        className="mt-1 rounded border-gray-300"
+                      />
+                      <div className="flex-1">
                         <h3 className="font-medium">{doc.source_filename}</h3>
                         <p className="text-sm text-gray-600">
                           Type: {doc.type} | Pages: {doc.page_count || 'Processing...'}
@@ -252,11 +305,26 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
                           <p className="text-sm text-red-600 mt-1">{doc.error_message}</p>
                         )}
                       </div>
-                      <div className={`text-sm font-medium ${getStatusColor(doc.status)}`}>
-                        {doc.status}
+                      <div className="flex items-center gap-3">
+                        <div className={`text-sm font-medium ${getStatusColor(doc.status)}`}>
+                          {doc.status}
+                        </div>
+                        <DocumentActions
+                          document={doc}
+                          onUpdate={(updatedDoc) => {
+                            // Update the document in the list
+                            setDocuments(docs =>
+                              docs.map(d => d.id === updatedDoc.id ? updatedDoc : d)
+                            )
+                          }}
+                          onDelete={() => {
+                            // Remove document from list
+                            setDocuments(docs => docs.filter(d => d.id !== doc.id))
+                          }}
+                        />
                       </div>
                     </div>
-                    
+
                     {doc.status === 'complete' && (
                       <button
                         onClick={() => router.push(`/document/${doc.id}`)}
