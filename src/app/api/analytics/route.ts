@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin, getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,42 +16,59 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all documents for user's children (RLS automatically filters by user)
-    const { data: documents, error: docsError } = await getSupabaseClient()
+    // Step 1: Get user's children
+    const { data: children, error: childrenError } = await getSupabaseAdmin()
+      .from('children')
+      .select('id')
+      .eq('user_id', user.id);
+
+    if (childrenError || !children || children.length === 0) {
+      console.error('Failed to fetch children:', childrenError);
+      // Return empty analytics if user has no children
+      return NextResponse.json({
+        overview: { totalDocuments: 0, totalIEPs: 0, processedDocuments: 0, failedDocuments: 0, processingDocuments: 0, structuredExtractions: 0 },
+        validation: { totalIssues: 0, errorCount: 0, warningCount: 0, infoCount: 0, fixedCount: 0, issuesByCategory: {}, issuesBySeverity: { error: 0, warning: 0, info: 0 } },
+        iepData: { totalGoals: 0, goalsByDomain: {}, totalServices: 0, servicesByType: {}, totalAccommodations: 0, studentsWithIEPs: 0, averageGoalsPerIEP: 0, averageServicesPerIEP: 0 },
+        compliance: { overdueReviews: 0, longDurationIEPs: 0, missingBaselines: 0, unmeasurableGoals: 0 }
+      });
+    }
+
+    const childIds = children.map(c => c.id);
+
+    // Step 2: Get cases for user's children
+    const { data: cases, error: casesError } = await getSupabaseAdmin()
+      .from('cases')
+      .select('id, child_id, name')
+      .in('child_id', childIds);
+
+    if (casesError || !cases) {
+      console.error('Failed to fetch cases:', casesError);
+      return NextResponse.json({ error: 'Failed to fetch cases' }, { status: 500 });
+    }
+
+    const caseIds = cases.map(c => c.id);
+
+    // Step 3: Get documents for those cases
+    const { data: documents, error: docsError } = await getSupabaseAdmin()
       .from('documents')
-      .select(`
-        id,
-        type,
-        status,
-        created_at,
-        page_count,
-        is_partial_extraction,
-        metadata,
-        cases!inner(
-          child_id,
-          children!inner(
-            id,
-            name,
-            user_id
-          )
-        )
-      `);
+      .select('id, type, status, created_at, page_count, is_partial_extraction, metadata, case_id')
+      .in('case_id', caseIds);
 
     if (docsError || !documents) {
       console.error('Failed to fetch documents:', docsError);
       return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 });
     }
 
-    // Get extracted IEP data for these documents
+    // Step 4: Get extracted IEP data for these documents
     const documentIds = documents.map(d => d.id);
-    const { data: extractions } = await getSupabaseClient()
+    const { data: extractions } = await getSupabaseAdmin()
       .from('extracted_iep_data')
       .select('id, document_id, data, extracted_at')
       .in('document_id', documentIds);
 
-    // Get validation issues for extractions
+    // Step 5: Get validation issues for extractions
     const extractionIds = extractions?.map(e => e.id) || [];
-    const { data: issues } = await getSupabaseClient()
+    const { data: issues } = await getSupabaseAdmin()
       .from('validation_issues')
       .select('severity, category, status, extracted_iep_data_id')
       .in('extracted_iep_data_id', extractionIds);
