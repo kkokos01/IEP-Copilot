@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 // Error codes and messages
 const ERRORS = {
@@ -102,8 +102,8 @@ export async function GET(
 
     const { id: documentId } = await params;
 
-    // Get document with ownership verification via RLS
-    const { data: document, error: docError } = await getSupabaseClient()
+    // Get document with ownership verification (use admin client, verify manually)
+    const { data: document, error: docError } = await getSupabaseAdmin()
       .from("documents")
       .select(`
         *,
@@ -124,7 +124,7 @@ export async function GET(
       return errorResponse(ERRORS.DOCUMENT_NOT_FOUND);
     }
 
-    // Verify ownership (extra check, RLS should handle this)
+    // Verify ownership - explicit check required when using admin client
     if (document.cases.children.user_id !== user.id) {
       return errorResponse(ERRORS.DOCUMENT_NOT_FOUND);
     }
@@ -213,8 +213,8 @@ export async function PATCH(
     // Add updated timestamp
     updates.updated_at = new Date().toISOString();
 
-    // Get current document for audit log
-    const { data: currentDoc, error: fetchError } = await getSupabaseClient()
+    // Get current document for audit log and ownership verification
+    const { data: currentDoc, error: fetchError } = await getSupabaseAdmin()
       .from("documents")
       .select("*, cases!inner(id, children!inner(user_id))")
       .eq("id", documentId)
@@ -224,13 +224,13 @@ export async function PATCH(
       return errorResponse(ERRORS.DOCUMENT_NOT_FOUND);
     }
 
-    // Verify ownership
+    // Verify ownership - explicit check required when using admin client
     if (currentDoc.cases.children.user_id !== user.id) {
       return errorResponse(ERRORS.DOCUMENT_NOT_FOUND);
     }
 
-    // Update document (RLS enforces ownership)
-    const { data: updatedDoc, error: updateError } = await getSupabaseClient()
+    // Update document using admin client (ownership already verified)
+    const { data: updatedDoc, error: updateError } = await getSupabaseAdmin()
       .from("documents")
       .update(updates)
       .eq("id", documentId)
@@ -312,8 +312,8 @@ export async function DELETE(
 
     const { id: documentId } = await params;
 
-    // Get document for storage cleanup and audit log
-    const { data: document, error: docError } = await getSupabaseClient()
+    // Get document for storage cleanup, audit log, and ownership verification
+    const { data: document, error: docError } = await getSupabaseAdmin()
       .from("documents")
       .select(`
         *,
@@ -331,7 +331,7 @@ export async function DELETE(
       return errorResponse(ERRORS.DOCUMENT_NOT_FOUND);
     }
 
-    // Verify ownership
+    // Verify ownership - explicit check required when using admin client
     if (document.cases.children.user_id !== user.id) {
       return errorResponse(ERRORS.DOCUMENT_NOT_FOUND);
     }
@@ -347,8 +347,8 @@ export async function DELETE(
       page_count: document.page_count,
     };
 
-    // Delete from database (cascades to all dependent data)
-    const { error: deleteError } = await getSupabaseClient()
+    // Delete from database using admin client (cascades to all dependent data)
+    const { error: deleteError } = await getSupabaseAdmin()
       .from("documents")
       .delete()
       .eq("id", documentId);
