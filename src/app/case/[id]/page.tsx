@@ -9,7 +9,7 @@ import BulkDocumentActions from '@/components/BulkDocumentActions'
 
 type Document = Database['public']['Tables']['documents']['Row']
 type Case = Database['public']['Tables']['cases']['Row'] & {
-  children: { name: string }
+  children: { id: string; name: string }
 }
 
 export default function CasePage({ params }: { params: Promise<{ id: string }> }) {
@@ -48,7 +48,7 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
     // Load case info
     const { data: caseInfo } = await getSupabaseClient()
       .from('cases')
-      .select('*, children(name)')
+      .select('*, children(id, name)')
       .eq('id', caseId)
       .single()
 
@@ -192,6 +192,14 @@ export default function CasePage({ params }: { params: Promise<{ id: string }> }
               <h1 className="text-xl font-semibold">
                 {caseData?.name} - {caseData?.children?.name}
               </h1>
+              {caseData?.children?.id && (
+                <button
+                  onClick={() => router.push(`/children/${caseData.children.id}/analytics`)}
+                  className="ml-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  📊 Analytics
+                </button>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">{user?.email}</span>
