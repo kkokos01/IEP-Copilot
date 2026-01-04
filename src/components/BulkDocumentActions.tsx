@@ -29,7 +29,7 @@ export default function BulkDocumentActions({
 }: BulkDocumentActionsProps) {
   const [showRecategorizeModal, setShowRecategorizeModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [newType, setNewType] = useState('iep');
+  const [newType, setNewType] = useState<string>('iep');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });

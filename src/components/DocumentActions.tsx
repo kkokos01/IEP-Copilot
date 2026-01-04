@@ -29,7 +29,7 @@ export default function DocumentActions({ document, onUpdate, onDelete }: Docume
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [newFilename, setNewFilename] = useState(document.source_filename);
-  const [newType, setNewType] = useState(document.type);
+  const [newType, setNewType] = useState<string>(document.type);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
