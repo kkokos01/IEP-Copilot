@@ -1,12 +1,29 @@
 # TODO
 
-## 🎉 MILESTONE ACHIEVED: Functional MVP (v3.3)
+## 🎉 MILESTONE ACHIEVED: Child Analytics (v3.6 - Phase 1)
+
+**Date**: 2026-01-03
+**Commit**: `1a9796e`
+**Achievement**: Individual child analytics with IEP timeline, goal/service tracking, and compliance monitoring!
+
+Phase 1 of child-level analytics is complete and functional:
+1. ✅ API endpoint with comprehensive data aggregation
+2. ✅ IEP timeline showing goals, services, accommodations over time
+3. ✅ Latest vs Previous IEP comparison with fuzzy matching
+4. ✅ Service hours calculation with text parsing
+5. ✅ Compliance status tracking (annual review, triennial evaluation)
+6. ✅ Validation issue aggregation and display
+7. ✅ Navigation integration from case detail page
+
+---
+
+## 🎉 Previous Milestone: Functional MVP (v3.3)
 
 **Date**: 2026-01-01
 **Commit**: `0195af2`
 **Achievement**: Successfully uploaded and processed 7 real IEP documents with findings displayed in UI!
 
-This is our first fully functional end-to-end MVP. The complete pipeline works:
+This was our first fully functional end-to-end MVP. The complete pipeline works:
 1. ✅ User uploads PDF via UI
 2. ✅ Document stored in Supabase Storage
 3. ✅ Google Document AI extracts text (Layout Parser format)
@@ -28,10 +45,33 @@ This is our first fully functional end-to-end MVP. The complete pipeline works:
 - [x] **Week 6 Analytics Dashboard** - Document statistics, validation issues, IEP data ✅ DONE
 - [x] **Document Management Features** - Rename, delete, recategorize, bulk operations ✅ DONE
 - [x] **API Standardization** - Consistent Supabase client usage across all routes ✅ DONE
+- [x] **Child Analytics (Phase 1)** - Individual child IEP tracking and comparison ✅ DONE
+- [ ] **Polish child analytics UI** - Improve charts, add more visualizations
 - [ ] **Add document processing progress indicators** with real-time updates
 - [ ] **Create onboarding flow** for beta users with tutorial
 
 ### Completed This Sprint ✅
+
+#### Child Analytics (Phase 1) - 2026-01-03
+- ✅ Created child analytics API at `/api/children/[childId]/analytics`
+  - IEP timeline with goals, services, accommodations aggregation
+  - Latest vs Previous IEP comparison with fuzzy matching (80% threshold)
+  - Service hours calculation via text parsing ("2x/week, 30min" → 60min/week)
+  - Compliance status tracking (annual review, triennial evaluation)
+  - Validation issue aggregation by severity and category
+  - Multi-step ownership verification (children → cases → documents)
+- ✅ Built child analytics UI page at `/children/[childId]/analytics`
+  - Overview cards with compliance status (color-coded: red/yellow/green)
+  - Latest IEP changes breakdown (goals, services, accommodations)
+  - Service details with added/removed/modified tracking
+  - IEP timeline table with all metrics
+  - Validation issues list with severity badges
+- ✅ Added Analytics navigation button to case detail page
+  - Prominent blue button in header
+  - One-click access to child insights
+- ✅ Fixed API nested relationship access (Supabase joins)
+- ✅ Comprehensive testing with real data (7 IEPs, 60min/week service hours calculated)
+- 📝 Commits: `3c3b96f` (API), `93efc3d` (fix), `4c44ef5` (UI), `1a9796e` (nav)
 
 #### Week 6 Analytics Dashboard & Document Management (2026-01-03)
 - ✅ Created analytics API with user-specific filtering

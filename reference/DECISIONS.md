@@ -539,6 +539,47 @@ if (spanOverlaps) {
 
 ---
 
+## 2026-01-03: Child-Level Analytics Architecture
+
+**Status**: Implemented
+**Decision**: Build child analytics with client-side fuzzy matching and text parsing algorithms
+**Context**: Need individual student analytics for both B2C (parents) and B2B (advocates) markets
+
+### Alternatives Considered
+- **Server-side fuzzy matching**: Run matching in database queries
+  - Pro: Potentially faster for large datasets
+  - Con: Complex PostgreSQL functions, harder to debug
+- **Pre-compute all comparisons**: Store goal mappings at extraction time
+  - Pro: Instant API responses
+  - Con: Requires re-processing all documents when algorithm improves
+- **Client-side only**: No API, compute everything in browser
+  - Pro: No server cost
+  - Con: Slow for users, can't cache results
+
+### Rationale
+- Fuzzy matching algorithm (Levenshtein distance) is simple and fast enough for API runtime
+- Text parsing for service hours is deterministic and lightweight
+- Client-side rendering already in place for other dashboards
+- API-first approach allows future optimizations without UI changes
+- Can add caching layer later if needed (5-minute TTL)
+
+### Consequences
+- ✅ Fast development iteration on matching algorithms
+- ✅ Easy to debug with console logging in API
+- ✅ Can improve accuracy without database migrations
+- ✅ API response < 300ms for typical child (7 IEPs)
+- ✅ Clean separation: API aggregates, UI presents
+- ❌ Every request recalculates comparisons (no caching yet)
+- ❌ May need optimization if children have 20+ IEPs
+
+### Implementation Details
+- **Fuzzy Matching**: 80% similarity threshold using Levenshtein distance
+- **Service Hours**: Text parsing with regex ("2 times per week, 30 minutes" → 60 min/week)
+- **Ownership**: Multi-step verification (children → cases → documents → extracted_iep_data)
+- **Nested Relationships**: Handle Supabase `!inner` joins returning objects not arrays
+
+---
+
 ## Pending Decisions
 
 ### Migrate to Vercel OIDC for GCP Authentication

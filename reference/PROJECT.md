@@ -4,10 +4,10 @@
 
 **IEP Copilot** is an AI-powered platform that helps parents and advocates analyze special education documents with verified citations.
 
-**Status**: ✅ FUNCTIONAL MVP (v3.5) - Full document management + Analytics dashboard!
+**Status**: ✅ FUNCTIONAL MVP (v3.6) - Child-level analytics now live!
 **Last Updated**: 2026-01-03
-**Stable Commit**: `5384c29` - Analytics dashboard + Document management features
-**Current Focus**: User testing and feedback iteration  
+**Stable Commit**: `1a9796e` - Child analytics (Phase 1) complete
+**Current Focus**: UI polish and user testing  
 
 ## Quick Links
 - [📋 TODO.md](./TODO.md) - Current sprint focus and roadmap
@@ -39,7 +39,8 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - ✅ Partial extraction tracking and recovery
 - ✅ Automated database migrations via GitHub Actions
 - ✅ PDF citation highlighting with client-side text search (mostly working)
-- ✅ **Analytics Dashboard** - Document statistics, validation tracking, IEP metrics, compliance monitoring
+- ✅ **Portfolio Analytics Dashboard** - Document statistics, validation tracking, IEP metrics, compliance monitoring
+- ✅ **Child Analytics (Phase 1)** - Individual student IEP timeline, goal/service tracking, compliance status, latest vs previous comparison
 - ✅ **Document Management** - Rename, delete, recategorize with individual and bulk operations
 - ✅ **API Standardization** - Consistent patterns across all server-side routes with comprehensive documentation
 
@@ -72,6 +73,8 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - **Large Documents**: Processing timeouts on PDFs >100 pages (needs checkpointing)
 - **Citation Highlighting**: Works for most citations; some edge cases not highlighting (investigating)
 - **Progress Indicators**: No real-time progress shown during processing
+- **Child Analytics UI**: Basic charts implemented; needs more visualizations and polish
+- **Analytics Data Validation**: Need to validate calculations with more real-world IEP data
 
 ### Security Concerns
 - ⚠️ Real API keys were previously in `.env.example` (now fixed)
@@ -112,8 +115,14 @@ IEP Copilot transforms how parents and advocates navigate special education docu
 - ✅ Layout Parser extraction fixed
 - ✅ GCP credentials working in production (Base64)
 - ✅ PDF citation highlighting (client-side text search)
+- ✅ **CHILD ANALYTICS (PHASE 1)** - API + UI functional with real data
+  - ✅ IEP timeline tracking
+  - ✅ Goal comparison with fuzzy matching
+  - ✅ Service hours calculation
+  - ✅ Compliance monitoring
+  - ⚠️ UI needs polish and additional visualizations
 - ⚠️ Some citations not highlighting (edge cases)
-- ⚠️ Need beta user feedback
+- ⚠️ Need beta user feedback on analytics features
 - ⚠️ Need to configure Sentry DSN in production
 
 ## Target Users
