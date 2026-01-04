@@ -2,15 +2,9 @@
 
 import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
+import { Database } from '@/types/supabase';
 
-interface Document {
-  id: string;
-  source_filename: string;
-  type: string;
-  effective_date?: string | null;
-  meeting_date?: string | null;
-  storage_path: string;
-}
+type Document = Database['public']['Tables']['documents']['Row'];
 
 interface DocumentActionsProps {
   document: Document;

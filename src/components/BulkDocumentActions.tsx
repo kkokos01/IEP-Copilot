@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
+import { Database } from '@/types/supabase';
 
-interface Document {
-  id: string;
-  source_filename: string;
-  type: string;
-}
+type Document = Database['public']['Tables']['documents']['Row'];
 
 interface BulkDocumentActionsProps {
   selectedDocuments: Document[];
